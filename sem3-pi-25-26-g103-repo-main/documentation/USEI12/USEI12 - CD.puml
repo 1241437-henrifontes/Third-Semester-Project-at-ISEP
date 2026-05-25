@@ -1,0 +1,51 @@
+@startuml
+title USEI12 - Class Diagram
+skinparam classAttributeIconSize 0
+
+class MBNUI <<UI>> {
+  +run()
+  -controller: MBNController
+}
+
+class MBNController <<controller>> {
+  +generateDot(): void
+  -getGraphRepository(): GraphRepository
+}
+
+class GraphRepository <<singleton, repository>> {
+  -{static} instance: GraphRepository
+  -minimalBackboneGraph: Graph<Node, Double>
+  +{static} getInstance(): GraphRepository
+  +getMinimalBackboneGraph(): Graph<Node, Double>
+  +computeMinimalBackboneGraph() : void
+}
+
+class Algorithms <<utility>> {
+    +{static} primMST(g: Graph<Node, Double>) : Graph<Node, Double>
+    +{static} getVertMinDist(dist: double[], visited: boolean[]) : int
+    +{static} buildMst(g : Graph<Node, Double>, path: int[], dist: double[]) : Graph<Node, Double>
+}
+
+interface Graph<Node, Double> <<structure>> {
+}
+
+class MapGraph<Node, Double> <<implementation>> {
+}
+
+class Node <<entity>> {
+}
+
+class GraphToDot <<utility>> {
+  +{static} generateDotFile(graph: Graph<Node, Double>) : void
+}
+
+MBNUI --> MBNController : controller
+MBNController --> GraphRepository
+MBNController ..> GraphToDot
+
+GraphRepository ..> Algorithms
+GraphRepository --> Graph : minimalBackboneGraph
+Graph <|.. MapGraph : minimalBackboneGraph
+Graph --> Node
+GraphToDot ..> Graph
+@enduml

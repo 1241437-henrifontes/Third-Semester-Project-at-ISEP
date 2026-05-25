@@ -1,0 +1,143 @@
+@startuml
+skinparam shadowing false
+skinparam linetype polyline
+skinparam classAttributeIconSize 0
+skinparam roundcorner 8
+
+'======================================================
+'           USEI01 CLASS DIAGRAM (NO DIVISIONS)
+'  Based on current codebase and the updated SD flow
+'======================================================
+
+class WarehouseUI <<UI>> {
+}
+
+class WarehouseController <<controller>> {
+  + loadWarehouses() : void
+  + changeBoxIntoBays(warehouse : Warehouse, bay1 : Bay, bay2 : Bay, box : Box) : void
+  + getWarehouses() : Map<String, Warehouse>
+}
+
+class WarehouseRepository <<singleton, repository>> {
+  - warehouses : Map<String, Warehouse>
+  + {static} getInstance() : WarehouseRepository
+  + getAllWarehouses() : List<Warehouse>
+  + getWarehouse(id : String) : Warehouse
+  + loadWarehouse() : void
+  + getWarehouses() : Map<String, Warehouse>
+  + updateWarehouse(warehouse : Warehouse) : void
+  + setWarehouses(warehouses : Map<String, Warehouse>) : void
+  + getWarehousesId() : List<String>
+}
+
+class WagonRepository <<singleton, repository>> {
+  - wagons : List<Wagon>
+  + {static} getInstance() : WagonRepository
+  + getWagons() : List<Wagon>
+  + loadWagons() : void
+  + getAllBoxes() : List<Box>
+}
+
+class ItemRepository <<singleton, repository>> {
+  + {static} getInstance() : ItemRepository
+  + getItems() : List<Item>
+  + loadItems() : void
+  + getItemBySKU(sku : SKU) : Item
+}
+
+class ReadFromCSV <<utility>> {
+  + {static} readFile<T>(fileName : String, mapper : Function<String[], T>) : List<T>
+}
+
+class Warehouse <<entity>> {
+  - warehouseID : String
+  - layout : List<List<Bay>>
+  + Warehouse(id : String, maxAisle : int, maxBay : int)
+  + getWarehouseID() : String
+  + addBay(bay : Bay) : void
+  + getBay(aisle : int, bay : int) : Bay
+  + getLayout() : List<List<Bay>>
+  + getBays() : List<Bay>
+  + FIFOAndFEFOOrder(boxes : List<Box>, bays : List<Bay>) : void
+  + addBoxesToBays(queue : PriorityQueue<Box>, bays : List<Bay>) : void
+  + changeIntoBays(box : Box, bay1 : Bay, bay2 : Bay) : void
+  + getBoxesBySKU(sku : SKU, quantity : int) : List<Box>
+}
+
+class Bay <<entity>> {
+  - warehouseId : String
+  - aisle : int
+  - bay : int
+  - capacityBoxes : int
+  - boxes : List<Box>
+  + getWarehouseId() : String
+  + getAisle() : int
+  + getBay() : int
+  + getCapacityBoxes() : int
+  + getBoxes() : List<Box>
+  + addBox(box : Box) : boolean
+  + removeBox(box : Box) : boolean
+}
+
+class Box <<entity>> {
+  - boxId : String
+  - receivedAt : LocalDateTime
+  - expiryDate : LocalDate
+  - items : Map<Item, Integer>
+  - assignedBayId : String
+  + getBoxId() : String
+  + getReceivedAt() : LocalDateTime
+  + getExpiryDate() : LocalDate
+  + getItems() : Map<Item, Integer>
+  + setAssignedBay(bay : Bay) : void
+}
+
+class Item <<entity>> {
+  - sku : SKU
+  - name : String
+  - category : String
+  - unit : String
+  - volume : float
+  - unitWeight : float
+  + getSku() : SKU
+}
+
+class SKU <<value object>> {
+  - sku : String
+  + getSku() : String
+}
+
+class Wagon <<entity>> {
+  - wagonId : String
+  - boxes : List<Box>
+  + getWagonId() : String
+  + setWagonId(id : String) : void
+  + getBoxes() : List<Box>
+  + addBox(box : Box) : void
+}
+
+'======================================================
+'                   RELATIONSHIPS
+'======================================================
+
+' Application/flow dependencies
+WarehouseUI --> WarehouseController
+WarehouseController --> WarehouseRepository
+WarehouseController --> WagonRepository
+WarehouseController ..> Warehouse : uses
+WarehouseController ..> Bay : uses
+WarehouseController .left.> Box : uses
+
+' Repositories to utility
+WarehouseRepository ..> ReadFromCSV
+WagonRepository ..> ReadFromCSV
+ItemRepository ..> ReadFromCSV
+
+' Domain associations
+Warehouse "1" o-- "*" Bay : contains >
+Bay "1" o-- "*" Box : holds >
+Box "*" -- "*" Item : stores >
+Item "1" --> "1" SKU : identified by >
+Wagon "1" o-- "*" Box : carries >
+
+@enduml

@@ -1,0 +1,179 @@
+@startuml
+
+skinparam shadowing false
+skinparam linetype polyline
+skinparam classAttributeIconSize 0
+skinparam roundcorner 8
+
+title USEI02 - Class Diagram
+
+class Order <<entity>> {
+    - orderId : String
+    - dueDate : LocalDateTime
+    - priority : int
+    - lines : List<OrderLine>
+    + getOrderId() : String
+    + getDueDate() : LocalDateTime
+    + getPriority() : int
+    + getLines() : List<OrderLine>
+    + setOrderId(orderId : String) : void
+    + setDueDate(dueDate : LocalDateTime) : void
+    + setPriority(priority : int) : void
+    + setLines(lines : List<OrderLine>) : void
+    + equals(o : Object) : boolean
+    + hashCode() : int
+    + toString() : String
+    + compareTo(o : Order) : int
+}
+
+class OrderLine <<entity>> {
+    - orderId : String
+    - lineNumber : int
+    - sku : SKU
+    - qty : int
+    - status : Status
+    + getOrderId() : String
+    + getLineNumber() : int
+    + getSku() : SKU
+    + getQty() : int
+    + setOrderId(orderId : String) : void
+    + setLineNumber(lineNumber : int) : void
+    + setSku(sku : SKU) : void
+    + setQty(qty : int) : void
+    + setStatus(status : Status) : void
+    + equals(o : Object) : boolean
+    + hashCode() : int
+    + toString() : String
+    + compareTo(ol : OrderLine) : int
+}
+
+class Allocation <<entity>> {
+    - line : OrderLine
+    - allocatedQty : Integer
+    - boxes : List<Map<Box, Integer>>
+    + getLine() : OrderLine
+    + setLine(line : OrderLine) : void
+    + getAllocatedQty() : Integer
+    + setAllocatedQty(allocatedQty : Integer) : void
+    + getBoxes() : List<Map<Box, Integer>>
+    + setBoxes(boxes : List<Map<Box, Integer>>) : void
+}
+
+class Warehouse <<entity>> {
+    - warehouseID : String
+    - layout : List<List<Bay>>
+    + getBoxesBySKU(sku : SKU, quantity : int) : List<Box>
+    + getBay(aisle : int, bay : int) : Bay
+    + getLayout() : List<List<Bay>>
+}
+
+class Box <<entity>> {
+    - boxId : String
+    - receivedAt : LocalDateTime
+    - expiryDate : LocalDate
+    - items : Map<Item, Integer>
+    - assignedBayId : String
+    + getBoxId() : String
+    + getReceivedAt() : LocalDateTime
+    + getExpiryDate() : LocalDate
+    + getItems() : Map<Item, Integer>
+    + getAssignedBay() : bay
+}
+
+class Bay <<entity>> {
+    - warehouseId : String
+    - aisle : int
+    - bay : int
+    - capacityBoxes : int
+    - boxes : List<Box>
+    + getAisle() : int
+    + getBay() : int
+    + getBoxes() : List<Box>
+    + addBox(box : Box) : boolean
+}
+
+class Item <<entity>> {
+    - sku : SKU
+    - name : String
+    - category : String
+    - unit : String
+    - volume : float
+    - unitWeight : float
+    + getSku() : SKU
+}
+
+enum Status <<enum>> {
+    ELIGIBLE
+    PARTIAL
+    UNDISPATCHABLE
+}
+
+class AllocationUI <<UI>> {
+}
+
+class AllocationController <<controller>> {
+    - getOrderRepository() : OrderRepository
+    - getAllocationRepository() : AllocationRepository
+    - getOrders() : PriorityQueue<Order>
+    + attendOrders(isStrictFlag : boolean) : void
+    - electOrders(results : List<Allocation>, isStrictFlag : boolean) : void
+}
+
+class AllocationPrinter <<printer>> {
+    + {static} elect(results : List<Allocation>, isStrictFlag : boolean) : void
+}
+
+class AllocationRepository <<singleton, repository>> {
+    - allocationList : List<Allocation>
+    + {static} getInstance() : AllocationRepository
+    + getAllocationList() : List<Allocation>
+    + allocate(orders : PriorityQueue<Order>) : void
+    - {static} examine(line : OrderLine, wrs : List<Warehouse>) : void
+    - {static} allocateFromWarehouse(line : OrderLine, wr : Warehouse, targetItem : Item, remaining : int, allUsedBoxes : List<Map<Box, Integer>>) : int
+}
+
+class OrderRepository <<singleton, repository>> {
+    - orders : PriorityQueue<Order>
+    + {static} getInstance() : OrderRepository
+    + getOrders() : PriorityQueue<Order>
+    + loadOrders() : void
+    - loadLines(ordersList : List<Order>) : void
+}
+
+class WarehouseRepository <<singleton, repository>> {
+    + {static} getInstance() : WarehouseRepository
+    + getAllWarehouses() : List<Warehouse>
+}
+
+class ItemRepository <<singleton, repository>> {
+    + {static} getInstance() : ItemRepository
+    + getItemBySKU(sku : SKU) : Item
+}
+
+class ReadFromCSV <<utility>> {
+    + {static} readFile<T>(fileName : String, mapper : Function<String[], T>) : List<T>
+}
+
+AllocationUI --> AllocationController : controller
+AllocationController ..> OrderRepository
+AllocationController ..> AllocationRepository
+AllocationController ..> AllocationPrinter
+
+OrderRepository ..> ReadFromCSV
+WarehouseRepository ..> ReadFromCSV
+ItemRepository ..> ReadFromCSV
+
+Order "1" --> "*" OrderLine : lines
+OrderLine "1" --> "1" SKU : sku
+OrderLine "1" --> "1" Status : status
+Allocation "1" --> "1" OrderLine : line
+Allocation "1" -- "*" Box : boxes
+
+Warehouse "1" --> "1..*" Bay : layout
+Bay "1" --> "*" Box : boxes
+Box "1" --> "*" Item : items
+Item "1" --> "1" SKU : sku
+
+AllocationRepository --> Allocation : allocationList
+
+@enduml

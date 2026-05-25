@@ -1,0 +1,91 @@
+@startuml
+autonumber
+skinparam shadowing false
+skinparam linetype polyline
+skinparam roundcorner 8
+skinparam classAttributeIconSize 0
+
+title USEI09 - Nearest-N Proximity Search - Sequence Diagram
+
+actor "Analyst" as USER
+participant ":NearestNUI" as UI
+participant "controller\n:NearestNController" as CTRL
+participant "service\n:NearestNService" as SVC
+participant "index\n:SpatialIndex (KD-Tree)" as INDEX
+participant "math\n:DistanceUtils" as MATH
+
+activate USER
+USER -> UI : Requests nearest-N stations
+activate UI
+
+UI -> CTRL : getNearest(lat, lon, n, timeZoneGroup, country?, isMainStation?, isCity?)
+activate CTRL
+
+CTRL -> CTRL : build NearestNQuery(lat, lon, n, timeZoneGroup, country, isMainStation, isCity)
+
+CTRL -> SVC : findNearest(query)
+activate SVC
+
+SVC -> SVC : validate coordinates and n
+alt invalid parameters
+  SVC --> CTRL : throws IllegalArgumentException
+  deactivate SVC
+  CTRL --> UI : error (invalid input)
+  deactivate CTRL
+  UI --> USER : displays validation error
+  deactivate UI
+  deactivate USER
+
+end
+
+SVC -> INDEX : nearestN(query)
+activate INDEX
+
+INDEX -> INDEX : init max-heap (size = n)
+loop KD-tree traversal (recursive)
+  INDEX -> INDEX : visit node
+  INDEX -> INDEX : for each station in node.stations
+  loop stations in node.stations
+    INDEX -> MATH : haversine(station.getLatitude(), station.getLongitude(), query.latitude, query.longitude)
+    activate MATH
+    MATH --> INDEX : distanceKm
+    deactivate MATH
+
+    alt filters present
+      INDEX -> INDEX : check timeZoneGroup (if present)
+      INDEX -> INDEX : check country (if present)
+      INDEX -> INDEX : check isMainStation (if present)
+      INDEX -> INDEX : check isCity (if present)
+      alt all filters match
+        INDEX -> INDEX : push candidate into max-heap\n(keep best n)
+      else not matched
+        INDEX -> INDEX : skip station
+      end
+    else no filters
+      INDEX -> INDEX : push candidate into max-heap\n(keep best n)
+    end
+  end
+
+  INDEX -> INDEX : compute delta to split plane (at node)
+  alt delta^2 < worstDist^2 in heap
+    INDEX -> INDEX : visit far branch
+  else
+    INDEX -> INDEX : prune far branch
+  end
+end
+
+INDEX --> SVC : candidates (List<Result>)
+deactivate INDEX
+
+SVC -> SVC : sort by distance ASC\ntie-break by station.name (ASC)
+SVC --> CTRL : results (List<Result>)
+deactivate SVC
+
+CTRL --> UI : results
+deactivate CTRL
+
+UI --> USER : displays ordered list (N nearest)
+deactivate UI
+deactivate USER
+
+@enduml

@@ -1,0 +1,10 @@
+sku,name,category,unit,volume,unitWeight
+SKU0001,Item_01,Cleaning,pack,1.9,9.38
+SKU0002,Item_02,Electronics,bottle,5.6,2.1
+SKU0003,Item_03,,unit,4.2,7.5
+SKU0004,,Hardware,box,3.0,1.2
+SKU0005,Item_05,Beverage,unit,-5.5,6.0
+SKU0006,Item_06,Cleaning,bag,8.1,-2.3
+,Item_07,Hardware,unit,4.5,5.2
+SKU0008,Item_08,Grocery,,7.0,4.9
+SKU0009,Item_09,PersonalCare,pack,ten,3.5

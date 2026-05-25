@@ -1,0 +1,168 @@
+@startuml
+skinparam shadowing false
+skinparam linetype polyline
+skinparam classAttributeIconSize 0
+skinparam roundcorner 8
+
+title USEI10 – Radius Search and Density Summary – Class Diagram
+
+' ===== ENTIDADES / VALUE OBJECTS =====
+class RailwayStation <<entity>> {
+  - name : String
+  - latitude : double
+  - longitude : double
+  - country : Country
+  - timeZone : String
+  - timeZoneGroup : TimeZoneGroup
+  - isCity : boolean
+  - isMainStation : boolean
+  - isAirport : boolean
+  + getName() : String
+  + getLatitude() : double
+  + getLongitude() : double
+  + getCountry() : Country
+  + getTimezone() : String
+  + getTimeZoneGroup() : TimeZoneGroup
+  + isCity() : boolean
+  + isMainStation() : boolean
+  + isAirport() : boolean
+}
+
+enum TimeZoneGroup {
+  CET
+  WET_GMT
+  EET
+  FET
+}
+
+class Country <<entity>> {
+  - code : String
+  - name : String
+  + getCode() : String
+  + getName() : String
+}
+
+class StationDistanceResult <<value object>> {
+  - station : RailwayStation
+  - distanceKm : double
+  + StationDistanceResult(station : RailwayStation, distanceKm : double)
+  + getStation() : RailwayStation
+  + getDistanceKm() : double
+  + compareTo(other : StationDistanceResult) : int
+}
+
+class RadiusQuery <<value object>> {
+  - latitude : double
+  - longitude : double
+  - radiusKm : double
+  + RadiusQuery(lat : double, lon : double, radiusKm : double)
+  + getLatitude() : double
+  + getLongitude() : double
+  + getRadiusKm() : double
+}
+
+class DensitySummary <<value object>> {
+  - byCountry : Map<String, Integer>
+  - byCity : Map<String, Integer>
+  - totalStations : int
+  + DensitySummary()
+  + addStation(country : String, isCity : boolean) : void
+  + getByCountry() : Map<String, Integer>
+  + getByCity() : Map<String, Integer>
+  + getTotalStations() : int
+}
+
+' ===== UTILITÁRIOS =====
+class DistanceUtils <<utility>> {
+  + {static} EARTH_RADIUS_KM : double = 6371.0
+  + {static} haversine(lat1 : double, lon1 : double, lat2 : double, lon2 : double) : double
+}
+
+class ValidationUtils <<utility>> {
+  + requireValidCoordinates(lat : double, lon : double) : void
+  + requirePositiveRadius(radiusKm : double) : void
+}
+
+' ===== INTEGRAÇÃO KD-TREE (USEI07) =====
+class KDNode {
+  - splitAxis : int
+  - stations : List<RailwayStation>
+  - left : KDNode
+  - right : KDNode
+}
+
+class KDTree <<adapter>> {
+  - root : KDNode
+  - size : int
+  - height : int
+  + getRoot() : KDNode
+  + rangeQuery(latMin : double, latMax : double, lonMin : double, lonMax : double) : List<RailwayStation>
+}
+
+' ===== AVL TREE (para ordenação) =====
+class AVLNode<T> {
+  - element : T
+  - left : AVLNode<T>
+  - right : AVLNode<T>
+  - height : int
+}
+
+class AVLTree<StationDistanceResult> <<container>> {
+  - root : AVLNode<StationDistanceResult>
+  - comparator : Comparator<StationDistanceResult>
+  + AVLTree(comparator : Comparator<StationDistanceResult>)
+  + insert(element : StationDistanceResult) : void
+  + inOrder() : Iterator<StationDistanceResult>
+  + size() : int
+}
+
+' ===== CAMADA APLICAÇÃO =====
+class StationSearchService <<service>> {
+  - kdTree : KDTree
+  + StationSearchService(kdTree : KDTree)
+  + findStationsInRadius(lat : double, lon : double, radiusKm : double) : AVLTree<StationDistanceResult>
+  + generateDensitySummary(results : AVLTree<StationDistanceResult>) : DensitySummary
+  - recursiveRadiusSearch(node : KDNode, lat : double, lon : double, radiusKm : double, results : AVLTree) : void
+}
+
+class StationRadiusController <<controller>> {
+  - service : StationSearchService
+  + StationRadiusController(service : StationSearchService)
+  + findStationsInRadius(lat : double, lon : double, radiusKm : double) : AVLTree<StationDistanceResult>
+  + getDensitySummary(results : AVLTree<StationDistanceResult>) : DensitySummary
+}
+
+class StationRadiusUI <<UI>> {
+  - controller : StationRadiusController
+  + StationRadiusUI(controller : StationRadiusController)
+  + run() : void
+  - requestCoordinates() : double[]
+  - requestRadius() : double
+  - displayResults(results : AVLTree<StationDistanceResult>) : void
+  - displayDensitySummary(summary : DensitySummary) : void
+}
+
+' ===== RELAÇÕES =====
+StationRadiusUI --> StationRadiusController : controller
+StationRadiusController --> StationSearchService : service
+StationRadiusController ..> RadiusQuery : builds
+
+StationSearchService --> KDTree : uses
+StationSearchService ..> ValidationUtils : validates
+StationSearchService ..> DistanceUtils : calculates distances
+StationSearchService ..> AVLTree : creates and populates
+
+AVLTree "1" *-- "*" AVLNode : root
+AVLNode --> StationDistanceResult : element
+StationDistanceResult --> RailwayStation : station
+
+KDTree "1" *-- "1" KDNode : root
+KDNode --> RailwayStation : holds *>
+
+StationSearchService ..> DensitySummary : generates
+DensitySummary ..> Country : aggregates by
+
+RailwayStation --> Country : country
+RailwayStation ..> TimeZoneGroup : timeZoneGroup
+
+@enduml

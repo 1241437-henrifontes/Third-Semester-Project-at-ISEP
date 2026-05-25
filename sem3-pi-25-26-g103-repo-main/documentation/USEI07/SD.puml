@@ -1,0 +1,123 @@
+@startuml
+title USEI07 - KD-tree Construction Sequence Diagram
+
+actor User
+participant "KDtreeBuildUI" as UI
+participant "KDtreeBuildController" as Controller
+participant "StationRepository" as Repo
+participant "KDtree" as Tree
+participant "KDnode" as Node
+
+== Build KD-tree ==
+User -> UI: Select "Build KD-tree"
+activate UI
+UI -> Controller: buildKDTree()
+activate Controller
+
+Controller -> Repo: getStations()
+activate Repo
+Repo --> Controller: stations
+deactivate Repo
+
+Controller -> Repo: getLatitudeTree()
+activate Repo
+Repo --> Controller: latitudeTree
+deactivate Repo
+
+Controller -> Repo: getLongitudeTree()
+activate Repo
+Repo --> Controller: longitudeTree
+deactivate Repo
+
+   Controller -> Repo: getKdtree()
+    activate Repo
+    Repo --> Controller: kdtree
+    deactivate Repo
+    
+    Controller -> Tree: buildTree()
+    activate Tree
+    
+    Tree -> Repo: getInstance()
+    activate Repo
+    Repo --> Tree: stationRepo
+    deactivate Repo
+    
+    Tree -> Repo: getLatitudeTree()
+    activate Repo
+    Repo --> Tree: sortedByLat
+    deactivate Repo
+    
+    Tree -> Repo: getLongitudeTree()
+    activate Repo
+    Repo --> Tree: sortedByLon
+    deactivate Repo
+    
+    Tree -> Tree: buildRec(sortedByLat, sortedByLon, 0)
+    activate Tree
+    
+    loop for each level in the tree
+        Tree -> Tree: Calculate median station
+        
+        Tree -> Node**: create KDnode(lat, lon, sameCoords, axis)
+        activate Node
+        Node --> Tree: node
+        deactivate Node
+        
+        Tree -> Tree: buildRec(leftByLat, leftByLon, depth)
+        Tree -> Tree: buildRec(rightByLat, rightByLon, depth)
+        
+        Tree -> Node: setLeft(leftNode)
+        activate Node
+        deactivate Node
+        
+        Tree -> Node: serRight(rightNode)
+        activate Node
+        deactivate Node
+    end
+    
+    Tree --> Tree: root node
+    deactivate Tree
+    
+    Tree --> Controller: success
+    deactivate Tree
+    
+    Controller --> UI: Success message
+
+
+UI --> User: Display result
+deactivate UI
+
+== Show KD-tree Statistics ==
+User -> UI: Select "Show KD-tree statistics"
+activate UI
+UI -> Controller: showKDTreeStats()
+activate Controller
+
+Controller -> Repo: getKdtree()
+activate Repo
+Repo --> Controller: kdtree
+deactivate Repo
+
+Controller -> Tree: getRoot()
+activate Tree
+Tree --> Controller: root
+deactivate Tree
+
+    Controller -> Tree: inspectTree()
+    activate Tree
+    
+    Tree -> Tree: size()
+    Tree -> Tree: height()
+    Tree -> Tree: distinctBucketSizes()
+    
+    Tree --> Controller: statistics displayed
+    deactivate Tree
+    
+    Controller --> UI: Statistics
+
+
+UI --> User: Display statistics
+deactivate UI
+deactivate Controller
+
+@enduml

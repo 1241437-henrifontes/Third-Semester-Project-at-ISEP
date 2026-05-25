@@ -1,0 +1,97 @@
+@startuml
+autonumber
+skinparam shadowing false
+skinparam linetype polyline
+skinparam roundcorner 8
+skinparam classAttributeIconSize 0
+
+actor "Operations Planner" as USER
+participant "StationRadiusUI" as UI
+participant "controller\n:StationRadiusController" as CTRL
+participant "service\n:StationSearchService" as SVC
+participant "index\n:KDtree (StationRepository)" as INDEX
+participant "node\n:KDnode" as NODE
+participant "utils\n:DistanceUtils" as MATH
+participant "results\n:AVLTree<StationDistanceResult>" as AVL
+participant "dto\n:RadiusSearchResultDTO" as DTO
+
+USER -> UI : Request findStationsInRadius(lat, lon, R)
+activate UI
+
+UI -> CTRL : findStationsInRadius(lat, lon, R)
+activate CTRL
+
+CTRL -> SVC : findStationsInRadius(lat, lon, R)
+activate SVC
+
+alt KD\-Tree missing / root null
+  SVC -> SVC : log warning / return empty AVL
+  SVC --> CTRL : return DTO(empty results, summaries)
+  deactivate SVC
+  CTRL --> UI : return DTO(empty results, summaries)
+  deactivate CTRL
+  UI --> USER : display warning / empty result
+  deactivate UI
+  deactivate USER
+end
+
+SVC -> INDEX : getRoot()
+activate INDEX
+INDEX --> SVC : root node
+deactivate INDEX
+
+SVC -> NODE : recursiveRadiusSearch(node, targetLat, targetLon, R, AVL)
+activate NODE
+
+loop for each visited node
+  NODE -> NODE : for each station in node.bucket
+  loop stations in bucket
+    NODE -> MATH : haversine(targetLat, targetLon, station.lat, station.lon)
+    activate MATH
+    MATH --> NODE : distanceKm
+    deactivate MATH
+
+    alt distance <= R
+      NODE -> AVL : insert(new StationDistanceResult(station, distance))\n(AVL keeps sort: distance ASC, name DESC)
+    end
+  end
+
+  NODE -> NODE : compute axisDistance / decide near/far child
+  alt axisDistance <= R
+    NODE -> NODE : recursive search far child
+  end
+  NODE -> NODE : recursive search near child
+end
+deactivate NODE
+
+SVC -> SVC : generateDensitySummary(AVL)\n(count by country, count by isCity)
+SVC -> DTO : new RadiusSearchResultDTO(AVL, summaries)
+activate DTO
+DTO --> SVC : dto
+deactivate DTO
+
+SVC --> CTRL : return DTO
+deactivate SVC
+
+CTRL --> UI : return DTO
+deactivate CTRL
+
+UI --> USER : display AVL results + summaries
+deactivate UI
+deactivate USER
+
+note right of MATH
+  Uses Haversine formula (EARTH_RADIUS_KM = 6371 km)
+end note
+
+note over AVL
+  AVL sorted by: distance (ASC), name (DESC)
+end note
+
+note right of SVC
+  Temporal complexity (expected): O(v + m * log m)
+  - v = number of KD\-tree nodes visited
+  - m = number of stations inside radius (each AVL insert O(log m))
+end note
+
+@enduml

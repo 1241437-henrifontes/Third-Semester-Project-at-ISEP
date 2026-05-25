@@ -1,0 +1,129 @@
+@startuml
+
+' USLP03 - Estimate Travel Time SD
+' Based on USEI01-SD style, adapted to TravelTimeUI/Controller and Repositories
+' https://plantuml.com/sequence-diagram
+
+autonumber
+
+actor "Traffic Dispatcher" as TD
+participant ":TravelTimeUI" as UI
+participant ":TravelTimeController" as CTRL
+participant "FacilityRepository" as FAC_REPO
+participant "facilityRepository\n:FacilityRepository" as FAC_REPO_OBJ
+participant "LineRepository" as LINE_REPO
+participant "lineRepository\n:LineRepository" as LINE_REPO_OBJ
+participant "SegmentRepository" as SEG_REPO
+participant "segmentRepository\n:SegmentRepository" as SEG_REPO_OBJ
+participant "LocomotiveRepository" as LOCO_REPO
+participant "locomotiveRepository\n:LocomotiveRepository" as LOCO_REPO_OBJ
+participant "segment\n:Segment" as SEG
+participant "locomotive\n:Locomotive" as LOCO
+
+activate TD
+
+TD -> UI : Requests travel time estimation
+activate UI
+
+UI -> CTRL** : create()
+
+' 1) Load Facilities
+UI -> CTRL : getFacilities()
+activate CTRL
+    CTRL -> FAC_REPO : getInstance()
+    activate FAC_REPO
+        FAC_REPO --> CTRL : instance
+    deactivate FAC_REPO
+
+    CTRL -> FAC_REPO_OBJ : getFacilities()
+    activate FAC_REPO_OBJ
+        FAC_REPO_OBJ --> CTRL : facilityList
+    deactivate FAC_REPO_OBJ
+
+    CTRL --> UI : facilityList
+ deactivate CTRL
+
+UI --> TD : shows existing facilities and asks to select one
+
+deactivate UI
+
+TD --> UI : selects a facility
+activate UI
+
+' 2) Load Lines from selected Facility
+UI -> CTRL : getLinesStartingAt(selectedFacility.getStationId())
+activate CTRL
+    CTRL -> LINE_REPO : getInstance()
+    activate LINE_REPO
+        LINE_REPO --> CTRL : instance
+    deactivate LINE_REPO
+
+    CTRL -> LINE_REPO_OBJ : getLines()
+    activate LINE_REPO_OBJ
+        LINE_REPO_OBJ --> CTRL : allLines
+    deactivate LINE_REPO_OBJ
+
+    CTRL --> UI : linesStartingAt
+ deactivate CTRL
+
+UI --> TD : shows lines and asks to select one
+
+deactivate UI
+
+TD --> UI : selects a line
+activate UI
+
+' 3) Load compatible locomotives (by gauge)
+UI -> CTRL : getLocomotivesCompatibleWithLine(selectedLine)
+activate CTRL
+    CTRL -> LOCO_REPO : getInstance()
+    activate LOCO_REPO
+        LOCO_REPO --> CTRL : instance
+    deactivate LOCO_REPO
+
+    CTRL -> LOCO_REPO_OBJ : getLocomotives()
+    activate LOCO_REPO_OBJ
+        LOCO_REPO_OBJ --> CTRL : allLocomotives
+    deactivate LOCO_REPO_OBJ
+
+    CTRL --> UI : compatibleLocomotives
+ deactivate CTRL
+
+UI --> TD : shows locomotives and asks to select one
+
+deactivate UI
+
+TD --> UI : selects a locomotive
+activate UI
+
+' 4) Load ordered segments of the selected line
+UI -> CTRL : getSegmentsForLineOrdered(selectedLine.getLineId())
+activate CTRL
+    CTRL -> SEG_REPO : getInstance()
+    activate SEG_REPO
+        SEG_REPO --> CTRL : instance
+    deactivate SEG_REPO
+
+    CTRL -> SEG_REPO_OBJ : getSegments()
+    activate SEG_REPO_OBJ
+        SEG_REPO_OBJ --> CTRL : allSegments
+    deactivate SEG_REPO_OBJ
+
+    CTRL --> UI : orderedSegments
+ deactivate CTRL
+
+' 5) Compute travel time for each segment using the selected locomotive
+loop for each segment in orderedSegments
+    UI -> LOCO : calculateEstimatedTimeTravel(SEG, selectedLocomotive)
+    activate LOCO
+        LOCO --> UI : seconds
+    deactivate LOCO
+end
+
+UI --> TD : Displays per-segment times and total estimated time
+
+deactivate UI
+
+deactivate TD
+
+@enduml

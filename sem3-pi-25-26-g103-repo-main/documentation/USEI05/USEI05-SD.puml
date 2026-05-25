@@ -1,0 +1,206 @@
+@startuml
+
+autonumber
+
+actor "Quality Operator" as SSM
+participant ":ReturnsUI" as UI
+participant ":ReturnsController" as CTRL
+participant "ReturnRepository" as RET_REPO
+participant "returnRepository\n:ReturnRepository" as RET_REPO_OBJ
+participant "ItemRepository" as ITEM_REPO
+participant "itemRepository\n:ItemRepository" as ITEM_REPO_OBJ
+participant "WarehouseRepository" as WARE_REPO
+participant "warehouseRepository\n:WarehouseRepository" as WARE_REPO_OBJ
+participant "quarantine\n:Quarantine" as QUARANTINE
+participant "warehouse\n:Warehouse" as WARE
+participant "bay\n:Bay" as BAY
+participant "newBox\n:Box" as BOX
+
+activate SSM
+
+SSM -> UI : Requests to manage returns
+activate UI
+
+UI -> CTRL** : create()
+
+UI -> CTRL : loadReturnsToQuarantine()
+activate CTRL
+
+    CTRL -> RET_REPO : getInstance()
+    activate RET_REPO
+        RET_REPO --> CTRL : instance
+    deactivate RET_REPO
+
+    CTRL -> RET_REPO_OBJ : loadReturns(itemRepository)
+    activate RET_REPO_OBJ
+        note over RET_REPO_OBJ
+            Reads returns.csv
+            Validates SKUs
+            Parses dates (yyyy-MM-dd or yyyy-MM-ddTHH:mm:ss)
+            Creates Return objects
+        end note
+        RET_REPO_OBJ --> CTRL : returns loaded
+    deactivate RET_REPO_OBJ
+
+    CTRL -> RET_REPO_OBJ : getAllReturns()
+    activate RET_REPO_OBJ
+        RET_REPO_OBJ --> CTRL : returnsList
+    deactivate RET_REPO_OBJ
+
+    loop for each return in returnsList
+        CTRL -> QUARANTINE : addReturn(return)
+        activate QUARANTINE
+            note over QUARANTINE
+                Adds return to TreeSet
+                (automatically sorted by:
+                 - expiryDate (earliest first)
+                 - timestamp (oldest first)
+                 - SKU (ascending))
+            end note
+            QUARANTINE --> CTRL : success
+        deactivate QUARANTINE
+    end
+
+    CTRL --> UI : loadingComplete
+deactivate CTRL
+
+UI --> SSM : shows menu options
+
+deactivate UI
+
+SSM --> UI : selects "Show Quarantine List"
+
+activate UI
+UI -> CTRL : printQuarantine()
+activate CTRL
+    CTRL -> QUARANTINE : printQuarantine()
+    activate QUARANTINE
+        note over QUARANTINE
+            Displays all returns in quarantine
+            with returnId, timestamp, reason
+        end note
+        QUARANTINE --> CTRL : displayed
+    deactivate QUARANTINE
+    CTRL --> UI : complete
+deactivate CTRL
+UI --> SSM : displays quarantine contents
+deactivate UI
+
+SSM --> UI : selects "Process All Returns"
+
+activate UI
+UI -> CTRL : processReturns()
+activate CTRL
+
+    CTRL -> QUARANTINE : processAllReturns()
+    activate QUARANTINE
+
+        loop for each return in quarantineSet
+            QUARANTINE -> QUARANTINE : inspectReturn(return)
+            activate QUARANTINE
+
+                alt canBeRestocked (CUSTOMER_REMORSE or CYCLE_COUNT)
+
+                    QUARANTINE -> BOX** : create(returnId, timestamp, expiryDate)
+                    
+                    QUARANTINE -> ITEM_REPO : getInstance()
+                    activate ITEM_REPO
+                        ITEM_REPO --> QUARANTINE : instance
+                    deactivate ITEM_REPO
+
+                    QUARANTINE -> ITEM_REPO_OBJ : getItemBySKU(sku)
+                    activate ITEM_REPO_OBJ
+                        ITEM_REPO_OBJ --> QUARANTINE : item
+                    deactivate ITEM_REPO_OBJ
+
+                    QUARANTINE -> BOX : addItem(item, quantity)
+                    activate BOX
+                        BOX --> QUARANTINE : success
+                    deactivate BOX
+
+                    loop for each warehouse
+                        QUARANTINE -> QUARANTINE : warehouseHasAvailableBayFromLayout(layout)
+                        activate QUARANTINE
+                            loop for each bay in layout
+                                QUARANTINE -> QUARANTINE : doesBoxFitInBay(bay)
+                                activate QUARANTINE
+                                    note over QUARANTINE
+                                        Check if bay has capacity
+                                        (boxes.size < capacityBoxes)
+                                    end note
+                                QUARANTINE --> QUARANTINE : fits
+                                deactivate QUARANTINE
+                            end
+                        QUARANTINE --> QUARANTINE : hasAvailableBay
+                        deactivate QUARANTINE
+
+                        alt warehouse has available bay
+                            QUARANTINE -> WARE : FIFOAndFEFOOrder(singleBoxList, bays)
+                            activate WARE
+                                note over WARE
+                                    Apply ordering:
+                                    - FEFO (expiryDate earliest first; null last)
+                                    - FIFO (receivedAt oldest first)
+                                    - Box ID ASC (tie-breaker)
+                                end note
+                                WARE -> WARE : create priority queue
+                                WARE -> WARE : addBoxesToBays(queue, bays)
+                                activate WARE
+                                    loop for each bay while capacity and queue not empty
+                                        WARE -> BAY : addBox(box)
+                                        activate BAY
+                                            BAY --> WARE : success
+                                        deactivate BAY
+                                    end
+                                    WARE --> WARE : success
+                                deactivate WARE
+                                WARE --> QUARANTINE : success
+                            deactivate WARE
+
+                            QUARANTINE -> WARE_REPO : getInstance()
+                            activate WARE_REPO
+                                WARE_REPO --> QUARANTINE : instance
+                            deactivate WARE_REPO
+
+                            QUARANTINE -> WARE_REPO_OBJ : updateWarehouse(warehouse)
+                            activate WARE_REPO_OBJ
+                                WARE_REPO_OBJ --> QUARANTINE : updated
+                            deactivate WARE_REPO_OBJ
+
+                            QUARANTINE -> QUARANTINE : return.setAction(RESTOCKED)
+                        end
+
+                    end
+
+                else DAMAGED or EXPIRED
+
+                    QUARANTINE -> QUARANTINE : return.setAction(DISCARDED)
+
+                end
+
+                QUARANTINE -> QUARANTINE : return.setProcessed(true)
+                QUARANTINE -> QUARANTINE : logInspection(return, action)
+                activate QUARANTINE
+                    note over QUARANTINE
+                        Writes to audit.log:
+                        timestamp | returnId | sku | action | qty
+                    end note
+                QUARANTINE --> QUARANTINE : logged
+                deactivate QUARANTINE
+
+            deactivate QUARANTINE
+        end
+
+        QUARANTINE --> CTRL : allReturnsProcessed
+    deactivate QUARANTINE
+
+    CTRL --> UI : processingComplete
+deactivate CTRL
+
+UI --> SSM : displays "All returns processed. Check 'audit.log'."
+
+deactivate UI
+
+deactivate SSM
+
+@enduml

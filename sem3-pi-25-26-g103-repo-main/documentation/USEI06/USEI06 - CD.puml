@@ -1,0 +1,111 @@
+@startuml
+title USEI06 - Class Diagram
+skinparam classAttributeIconSize 0
+
+class TimeZoneIndexUI {
+  +run()
+  -controller: TimeZoneIndexController
+}
+
+class TimeZoneIndexController {
+  +printStationsByLat(min: double, max: double)
+  +printStationsByLon(min: double, max: double)
+  +filterCountries(tz: TimeZoneGroup): List<Country>
+  +printStationsByTZC(tz: TimeZoneGroup, country: Country)
+  +printStationsByWindowQuery(lower: TimeZoneGroup, upper: TimeZoneGroup)
+  +getStationRepository(): StationRepository
+}
+
+class StationRepository {
+  -latitudeTree: AVLTree<RailwayStationLatitude>
+  -longitudeTree: AVLTree<RailwayStationLongitude>
+  -timeZoneCountryTree: AVLTree<TimeZoneIndex>
+  +searchByLatitudeRange(min: double, max: double): List<RailwayStationLatitude>
+  +searchByLongitudeRange(min: double, max: double): List<RailwayStationLongitude>
+  +filterCountries(tz: TimeZoneGroup): List<Country>
+  +searchByTimeZoneAndCountry(tz: TimeZoneGroup, country: Country): List<RailwayStation>
+  +getStationsByTimeZoneWindow(lower: TimeZoneGroup, upper: TimeZoneGroup): List<RailwayStation>
+}
+
+class BST<E> {
+}
+
+class AVLTree<E> {
+}
+
+class TimeZoneIndex {
+  -timeZoneGroup: TimeZoneGroup
+  -countries: AVLTree<CountryIndex>
+  +getTimeZoneGroup(): TimeZoneGroup
+  +getCountries(): AVLTree<CountryIndex>
+}
+
+class CountryIndex {
+  -country: Country
+  -stations: AVLTree<RailwayStationByName>
+  +getStationsInOrder(): List<RailwayStation>
+  +getCountry(): Country
+}
+
+class RailwayStationByName {
+  +station: RailwayStation
+}
+
+class RailwayStationLatitude {
+  -latitude: double
+  -stations: List<RailwayStation>
+  +getLatitude(): double
+  +getStations(): List<RailwayStation>
+}
+
+class RailwayStationLongitude {
+  -longitude: double
+  -stations: List<RailwayStation>
+  +getLongitude(): double
+  +getStations(): List<RailwayStation>
+}
+
+class RailwayStation {
+  -name: String
+  -latitude: double
+  -longitude: double
+  -country: Country
+  -timeZoneGroup: TimeZoneGroup
+  +getName(): String
+  +getLatitude(): double
+  +getLongitude(): double
+  +getCountry(): Country
+  +getTimeZoneGroup(): TimeZoneGroup
+}
+
+enum TimeZoneGroup {
+}
+
+enum Country {
+}
+
+class FilePrinterStations {
+}
+
+TimeZoneIndexUI --> TimeZoneIndexController : controller
+TimeZoneIndexController --> StationRepository
+TimeZoneIndexController ..> FilePrinterStations
+
+StationRepository ..> BST
+StationRepository o-- "1" AVLTree : latitudeTree
+StationRepository o-- "1" AVLTree : longitudeTree
+StationRepository o-- "1" AVLTree : timeZoneCountryTree
+BST <|-- AVLTree
+
+TimeZoneIndex o-- "1" AVLTree : countries
+CountryIndex o-- "1" AVLTree : stations
+
+RailwayStationByName --> RailwayStation : station
+RailwayStationLatitude o-- "*" RailwayStation : stations
+RailwayStationLongitude o-- "*" RailwayStation : stations
+
+RailwayStation --> Country : country
+RailwayStation --> TimeZoneGroup : timeZoneGroup
+TimeZoneIndex --> TimeZoneGroup : timeZoneGroup
+CountryIndex --> Country : country
+@enduml

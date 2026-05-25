@@ -1,0 +1,123 @@
+@startuml
+title USEI11 - Directed Line Upgrade Plan Sequence Diagram
+
+actor User
+participant "UpgradePlannerUI" as UI
+participant "UpgradePlannerController" as Controller
+participant "UpgradePlanner" as Service
+participant "orderAndCycles" as Utility
+participant "GraphRepository" as Repo
+participant "Graph<Node, Double>" as Graph
+
+== Compute Upgrade Order ==
+User -> UI: Select "Compute upgrade order"
+activate UI
+UI -> Controller: executeUSEI11()
+activate Controller
+
+Controller -> Repo: getInstance()
+activate Repo
+Repo --> Controller: graphRepo
+deactivate Repo
+
+Controller -> Repo: getStationGraph()
+activate Repo
+Repo --> Controller: graph
+deactivate Repo
+
+
+    Controller -> Service: Upgrades(graph)
+    activate Service
+    
+    Service -> Utility: topologicalOrder(graph)
+    activate Utility
+    
+    Utility -> Graph: vertices()
+    activate Graph
+    Graph --> Utility: vertices
+    deactivate Graph
+    
+    Utility -> Graph: inDegree(v)
+    activate Graph
+    Graph --> Utility: inDegree
+    deactivate Graph
+    
+    loop for each vertex with inDegree = 0
+        Utility -> Utility: Add to queue
+    end
+    
+    loop while queue is not empty
+        Utility -> Utility: Process vertex
+        Utility -> Graph: adjVertices(v)
+        activate Graph
+        Graph --> Utility: adjacent vertices
+        deactivate Graph
+        
+        loop for each adjacent vertex
+            Utility -> Utility: Update inDegree
+            Utility -> Utility: Add to queue if inDegree = 0
+        end
+    end
+    
+    alt graph has cycles
+        Utility --> Service: null
+        
+        Service -> Utility: findFirstCycle(graph)
+        activate Utility
+        
+        Utility -> Graph: vertices()
+        activate Graph
+        Graph --> Utility: vertices
+        deactivate Graph
+        
+        loop for each unvisited vertex
+            Utility -> Utility: dfs(graph, v, state, stack)
+            
+            loop for each adjacent vertex
+                Utility -> Graph: adjVertices(current)
+                activate Graph
+                Graph --> Utility: adjacent vertices
+                deactivate Graph
+                
+                alt cycle found
+                    Utility -> Utility: Create cycle list
+                    Utility --> Utility: cycle
+                end
+            end
+        end
+        
+        Utility --> Service: cycle
+        deactivate Utility
+        
+        Service --> Controller: cycle
+    else graph is acyclic
+        Utility --> Service: order
+        deactivate Utility
+        
+        Service --> Controller: order
+    end
+    deactivate Service
+    
+    Controller -> Repo: getStationGraph()
+    activate Repo
+    Repo --> Controller: graph
+    deactivate Repo
+    
+    Controller -> Graph: numVertices()
+    activate Graph
+    Graph --> Controller: totalStations
+    deactivate Graph
+    
+    Controller --> UI: result, totalStations
+
+
+alt
+    UI --> User: Graph without cycles.
+else
+    UI --> User: Graph with cycles detected.
+end
+
+deactivate UI
+deactivate Controller
+
+@enduml

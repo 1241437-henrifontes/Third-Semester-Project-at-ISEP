@@ -1,0 +1,138 @@
+@startuml USEI15-CD
+skinparam shadowing false
+skinparam linetype polyline
+skinparam classAttributeIconSize 0
+skinparam roundcorner 8
+
+class RoutePlannerUI <<UI>> {
+  + run() : void
+  - displayStationsList(stations : List<Node>) : void
+}
+
+class RiskAwarePathController <<controller>> {
+  - graph : Graph<Node, Double>
+  - pathFinder : RiskAwarePathFinder
+  + RiskAwarePathController(mainGraph : Graph<Node, Double>)
+  + getAllStations() : List<Node>
+  + calculateRiskAwareRoute(startInput : String, endInput : String) : String
+  - findNode(input : String) : Node
+}
+
+class RiskAwarePathFinder <<service>> {
+  + findRobustRoute(graph : Graph<Node, Double>, start : Node, end : Node) : String
+  - formatPathOutput(graph : Graph<Node, Double>, path : LinkedList<Node>, totalCost : double) : String
+}
+
+class Algorithms <<util>> {
+  + {static} shortestPathBellmanFord(g : Graph<Node, Double>, vOrig : Node, vDest : Node, shortPath : LinkedList<Node>) : Double
+  + {static} shortestPathDijkstra(...) : void
+  + {static} BreadthFirstSearch(...) : LinkedList<Node>
+  + {static} DepthFirstSearch(...) : LinkedList<Node>
+}
+
+class GraphRepository <<singleton, repository>> {
+  - {static} instance : GraphRepository
+  - stationGraph : Graph<Node, Double>
+  - stationGraphOrdered : Graph<Node, Double>
+  + {static} getInstance() : GraphRepository
+  + getStationGraph() : Graph<Node, Double>
+  + getStationGraphOrdered() : Graph<Node, Double>
+}
+
+interface Graph<Node, Double> <<interface>> {
+  + validVertex(vert : Node) : boolean
+  + key(vert : Node) : int
+  + vertex(key : int) : Node
+  + vertices() : ArrayList<Node>
+  + edges() : Collection<Edge<Node, Double>>
+  + edge(vOrig : Node, vDest : Node) : Edge<Node, Double>
+  + adjVertices(vert : Node) : Collection<Node>
+  + numVertices() : int
+}
+
+class MapGraph<Node, Double> <<implementation>> {
+  - vertices : Map<Node, Integer>
+  - edges : List<Edge<Node, Double>>
+  + validVertex(vert : Node) : boolean
+  + key(vert : Node) : int
+  + vertex(key : int) : Node
+  + vertices() : ArrayList<Node>
+  + edges() : Collection<Edge<Node, Double>>
+  + edge(vOrig : Node, vDest : Node) : Edge<Node, Double>
+}
+
+class Edge<Node, Double> <<entity>> {
+  - vOrig : Node
+  - vDest : Node
+  - cost : double
+  - distance : double
+  - capacity : int
+  + getVOrig() : Node
+  + getVDest() : Node
+  + getCost() : double
+  + getDistance() : double
+  + getCapacity() : int
+}
+
+class Node <<entity>> {
+  - node_id : String
+  - name : String
+  - geoCoordinates : Pair<Double, Double>
+  - xyCoordinates : Pair<Double, Double>
+  + getNode_id() : String
+  + getName() : String
+  + equals(o : Object) : boolean
+  + hashCode() : int
+}
+
+' Relationships
+RoutePlannerUI --> RiskAwarePathController : uses
+RoutePlannerUI ..> Node : displays
+
+RiskAwarePathController --> RiskAwarePathFinder : delegates
+RiskAwarePathController --> Graph : reads from
+RiskAwarePathController ..> Node : searches
+
+RiskAwarePathFinder ..> Algorithms : calls
+RiskAwarePathFinder ..> Graph : traverses
+RiskAwarePathFinder ..> Node : processes
+RiskAwarePathFinder ..> Edge : reads cost
+
+Algorithms ..> Graph : operates on
+Algorithms ..> Node : manipulates
+Algorithms ..> Edge : uses cost
+
+GraphRepository --> Graph : manages
+GraphRepository ..> MapGraph : instantiates
+
+Graph <|.. MapGraph : implements
+Graph "1" *-- "*" Edge : contains
+Graph "1" *-- "*" Node : contains
+
+Edge "1" --> "1" Node : origin
+Edge "1" --> "1" Node : destination
+
+note right of RiskAwarePathFinder
+  **Bellman-Ford Algorithm**
+  - Handles negative edge costs
+  - Detects negative cycles
+  - Time Complexity: O(V × E)
+  - V = vertices, E = edges
+end note
+
+note right of Algorithms::shortestPathBellmanFord
+  **Returns:**
+  - Double: total cost (or null if error)
+  - Updates shortPath parameter
+
+  **Detects:**
+  - Negative cycles
+  - No path exists
+end note
+
+note bottom of Edge
+  **cost** can be negative
+  for highly preferred links
+end note
+
+@enduml

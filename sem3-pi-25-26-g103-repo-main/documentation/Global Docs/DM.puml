@@ -1,0 +1,225 @@
+@startuml
+
+skinparam packageStyle rectangle
+skinparam shadowing true
+skinparam classAttributeIconSize 0
+skinparam padding 3
+skinparam nodesep 85
+skinparam ranksep 110
+skinparam backgroundColor white
+skinparam classBackgroundColor White
+skinparam arrowColor Black
+skinparam titleFontSize 20
+skinparam packageFontSize 16
+skinparam packageFontStyle bold
+
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+    ArrowColor Black
+}
+
+hide circle
+hide methods
+
+title Domain Model
+
+class TrainOperator {
+}
+
+class RollingStock {
+}
+
+class Locomotive {
+    numberOfLocomotives
+    locomotiveName
+    make
+    model
+    service
+    numberOfBogies
+    bogies
+    power
+    length
+    width
+    height
+    weight
+    maxSpeed
+    operationalSpeed
+    traction
+    type
+    voltage
+    frequency
+    operator
+    gauge
+    gas
+}
+
+class Wagon {
+    type
+    payload
+    volumeCapacity
+    dimension
+    tare
+    gauge
+}
+
+class Train {
+    numberOfWagons
+    totalWagonsLoad
+    emptyWagonsWeight
+}
+
+class Route {
+    name
+    type
+}
+
+class Line {
+    name
+    owner
+    gauge
+}
+
+class LineSegment {
+    order
+    type
+    length
+    maxWeight
+    maxSpeed
+    numberOfTracks
+}
+
+class Owner {
+}
+
+class Warehouse {
+}
+
+class Bay {
+    aisle
+    bay
+    capacity
+}
+
+class Terminal {
+}
+
+class Facility {
+    name
+}
+
+class Box {
+    receivedAt
+    expiryDate
+}
+
+class Quarantine {
+}
+
+class Item {
+    name
+    category
+    unit
+    volume
+    unitWeight
+}
+
+class SKU {
+    skuCode
+}
+
+class Return {
+    timeStamp
+    reason
+    quantity
+    expiryDate
+    action
+}
+
+class Order {
+    dueDate
+    priority
+}
+
+class OrderLine {
+    lineNumber
+    quantity
+}
+
+class Trolley {
+    capacity
+}
+
+class Planner {
+}
+
+class RailwayStation {
+    name
+    latitude
+    longitude
+    country
+    timeZone
+    timeZoneGroup
+}
+
+class Siding {
+}
+
+class Node {
+    name
+}
+
+class Edge {
+    weight
+    distance
+    capacity
+}
+
+class FreightYard {
+}
+
+Facility "1" -- "0..*" RailwayStation : serves >
+Line "1" -- "0..*" RailwayStation : has >
+
+TrainOperator "1" -- "1..*" RollingStock : owns >
+Locomotive "1" -- "1" Train : composes >
+Locomotive "*" -- "1" RollingStock : composes >
+Wagon "1..*" -- "1" Train : composes >
+Wagon "*" -- "1" RollingStock : composes >
+Train "1..*" -- "1" Line : uses >
+Train "*" -- "1" RollingStock : composes >
+Train "1" -- "1" Route : has >
+Owner "1" -- "1..*" Line : owns >
+Owner "1" -- "1..*" LineSegment : maintains >
+LineSegment "1..*" -- "1" Line : composes >
+Facility "1" - "1..*" Line : has >
+LineSegment "1" - "0..1" Siding : has >
+Train "1" -- "1..*" Siding : crosses >
+
+Terminal "1" -- "*" Warehouse : contains >
+Facility "1" -- "*" Warehouse : contains >
+Warehouse "1" -- "1..*" Bay : has >
+Warehouse "1" -- "1" Quarantine : contains >
+Bay "1" -- "*" Box : keeps >
+
+Box "1" -- "*" Item : keeps >
+Item "1" -- "1" SKU : has >
+Return "*" -- "1" Quarantine : placed in >
+Return "1" -- "1" Item : refers to >
+Return "1" -- "1" SKU : has >
+Quarantine "0..1" -- "1" Box : restocks into new >
+
+OrderLine "1..*" -- "1" SKU : has >
+Order "1" -- "1..*" OrderLine : has >
+Trolley "*" -- "*" OrderLine : picks >
+
+Planner "1" -- "1..*" Warehouse : manages >
+Planner "1" -- "*" Order : attends >
+Planner "1" -- "*" Trolley : plans >
+Wagon "1" -- "1..*" Box : carries >
+
+Node "1" -- "0..1" RailwayStation : has >
+Node "1" -- "0..1" Terminal : has >
+Node "1" -- "0..1" FreightYard : has >
+Edge "1" -- "2" Node : connects >
+@enduml

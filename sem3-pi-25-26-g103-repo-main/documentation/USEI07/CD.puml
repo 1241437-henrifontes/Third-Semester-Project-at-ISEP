@@ -1,0 +1,125 @@
+@startuml
+skinparam shadowing false
+skinparam linetype polyline
+skinparam classAttributeIconSize 0
+skinparam roundcorner 8
+skinparam packageStyle rectangle
+
+title USEI07 – KD-tree Construction – Class Diagram
+
+
+  class KDtreeBuildUI {
+    +run() : void
+
+  }
+
+
+
+
+  class KDtreeBuildController {
+    -repo : StationRepository
+    +buildKDTree() : void
+    +showKDTreeStats() : void
+  }
+
+
+
+
+  class StationRepository {
+    -latitudeTree : AVLTree<RailwayStationLatitude>
+    -longitudeTree : AVLTree<RailwayStationLongitude>
+    -kdtree : KDtree
+
+
+    {static} +getInstance() : StationRepository
+    +getStations() : List<RailwayStation>
+    +getLatitudeTree() : AVLTree<RailwayStationLatitude>
+    +getLongitudeTree() : AVLTree<RailwayStationLongitude>
+    +getKdtree() : KDtree
+  }
+
+
+' ===== DOMAIN MODEL =====
+  class RailwayStation  {
+    -name : String
+    -latitude : double
+    -longitude : double
+
+    +getName() : String
+    +getLatitude() : double
+    +getLongitude() : double
+
+  }
+
+
+
+  ' ===== COMPARATORS =====
+  class RailwayStationLatitude {
+    -latitude : double
+    -stations : List<RailwayStation>
+    +getLatitude() : double
+    +getStations() : List<RailwayStation>
+    +addStation(station : RailwayStation) : void
+  }
+
+  class RailwayStationLongitude  {
+    -longitude : double
+    -stations : List<RailwayStation>
+    +getLongitude() : double
+    +getStations() : List<RailwayStation>
+    +addStation(station : RailwayStation) : void
+  }
+
+  ' ===== KD-TREE IMPLEMENTATION =====
+  class KDtree {
+    -root : KDnode
+    +getRoot() : KDnode
+    +buildTree() : void
+    +size() : int
+    +height() : int
+    +bucketSizes() : List<Integer>
+    +distinctBucketSizes() : Set<Integer>
+    +inspectTree() : void
+    -buildRec(List<RailwayStation>, List<RailwayStation>, int depth) : KDnode
+    -sameCoordinates() : boolean
+    -isLeftOf() : boolean
+    -sizeRec() : int
+    -heightRec() : int
+    -collectBucketSizes() : void
+  }
+
+  class KDnode  {
+    -coords : Point2D.Double
+    -stations : List<RailwayStation>
+    -left : KDnode
+    -right : KDnode
+    -axis : int
+    +KDnode(double latitude double longitude,  List<RailwayStation> sameCoordStations, int axis)
+    +getCoords() : Point2D.Double
+    +getAxis() : int
+    +getLeft() : KDnode
+    +getRight() : KDnode
+    +setLeft() : void
+    +setRight() : void
+    +toString() : String
+  }
+
+
+KDtreeBuildUI --> KDtreeBuildController : uses
+KDtreeBuildController --> StationRepository : uses
+KDtreeBuildController --> KDtree : uses
+
+StationRepository *-- KDtree : contains
+
+StationRepository o-- RailwayStationLatitude : store
+StationRepository o-- RailwayStationLongitude : store
+
+
+KDtree *-- KDnode : contains
+KDnode o-- RailwayStation : contains
+
+
+RailwayStationLatitude o-- RailwayStation : contains
+RailwayStationLongitude o-- RailwayStation : contains
+
+@enduml

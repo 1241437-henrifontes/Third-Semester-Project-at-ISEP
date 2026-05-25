@@ -1,0 +1,245 @@
+@startuml USLP08-CD
+skinparam shadowing false
+skinparam linetype polyline
+skinparam classAttributeIconSize 0
+skinparam roundcorner 8
+
+class RoutePlannerLaprUI <<UI>> {
+  - controller : RouteController
+  - scanner : Scanner
+  + run() : void
+  + RoutePlannerLaprUI()
+  - createManualRouteFlow() : void
+  - createAutomaticRouteFlow() : void
+  - listPendingFreights() : void
+  - listCreatedRoutes() : void
+  - listAllLines() : void
+  - selectFreightsFlow() : List<Freight>
+  - readIntegerInput() : int
+}
+
+class RouteController <<controller>> {
+  - freightRepository : FreightRepository
+  - lineRepository : LineRepository
+  - routeRepository : RouteRepository
+  - selectedFreights : List<Freight>
+  - facilitySequence : List<Facility>
+  - connectionCache : Map<String, List<Facility>>
+  + RouteController()
+  + getPendingFreights() : List<Freight>
+  + getAvailableFacilities() : List<Facility>
+  + getFacilitiesConnectedTo(current : Facility) : List<Facility>
+  + getLastSelectedFacility() : Facility
+  + validateAllFreightsInSequence() : boolean
+  + getSelectedFreights() : List<Freight>
+  + addFreightToCurrentPlan(f : Freight) : void
+  + addFacilityToSequence(f : Facility) : void
+  + removeLastFacilityFromSequence() : void
+  + createAndSaveRoute(routeName : String) : boolean
+  + createAutomaticRoute(routeName : String, start : Facility, end : Facility) : boolean
+  + getAllCreatedRoutes() : List<Route>
+  + getAllLines() : List<Line>
+  + getFacilityNameById(id : String) : String
+  - validateFreightPath(f : Freight) : boolean
+  - findFreightSatisfactionIndex(f : Freight, startIndex : int) : int
+  - findShortestPath(start : Facility, end : Facility) : List<Facility>
+  - getCachedConnections(f : Facility) : List<Facility>
+  - clearSelection() : void
+}
+
+interface FreightRepository <<interface>> {
+  + getAllFacilities() : List<Facility>
+  + getPendingFreights() : List<Freight>
+}
+
+class FreightRepositoryOracle <<repository>> {
+  + FreightRepositoryOracle()
+  + getAllFacilities() : List<Facility>
+  + getPendingFreights() : List<Freight>
+  - getConnection() : Connection
+}
+
+class LineRepository <<singleton, repository>> {
+  - {static} instance : LineRepository
+  - lines : List<Line>
+  - allPhysicalSegments : List<Segment>
+  + {static} getInstance() : LineRepository
+  + getLines() : List<Line>
+  + getLineById(id : int) : Line
+  + findLineConnecting(fac1 : int, fac2 : int) : Line
+  + getSegmentsByLineId(lineId : int) : List<Segment>
+  + loadFromSQLFile(conn : Connection) : void
+}
+
+class RouteRepository <<singleton, repository>> {
+  - {static} instance : RouteRepository
+  - routes : List<Route>
+  + {static} getInstance() : RouteRepository
+  + getRoutes() : List<Route>
+  + addRoute(route : Route) : void
+}
+
+class SegmentRepository <<singleton, repository>> {
+  - {static} instance : SegmentRepository
+  - segments : List<Segment>
+  + {static} getInstance() : SegmentRepository
+  + getSegments() : List<Segment>
+  + loadFromSQL(conn : Connection) : void
+}
+
+class Route <<entity>> {
+  - routeId : int
+  - routeName : String
+  - segments : List<Segment>
+  - freights : List<Freight>
+  + Route(routeId : int, routeName : String)
+  + addSegment(s : Segment) : void
+  + addFreight(f : Freight) : void
+  + getSegments() : List<Segment>
+  + getFreights() : List<Freight>
+  + getRouteId() : int
+  + getRouteName() : String
+  + getAllOrigins() : List<String>
+  + getAllDestinations() : List<String>
+}
+
+class Segment <<entity>> {
+  - lineID : int
+  - order : int
+  - isElectrified : Boolean
+  - maxWeight : double
+  - length : double
+  - numberOfTracks : int
+  - siding : boolean
+  - startStationId : String
+  - endStationId : String
+  - startStationName : String
+  - endStationName : String
+  + Segment(lineID, order, isElectrified, maxWeight, length, numberOfTracks, siding, startStationId, endStationId, startStationName, endStationName)
+  + getLineID() : int
+  + getOrder() : int
+  + getElectrified() : Boolean
+  + getMaxWeight() : double
+  + getLength() : double
+  + getNumberOfTracks() : int
+  + hasSiding() : boolean
+  + getStartStationId() : String
+  + getEndStationId() : String
+  + getStartStationName() : String
+  + getEndStationName() : String
+  + isSingleTrack() : boolean
+  + setSiding(siding : boolean) : void
+}
+
+class Freight <<entity>> {
+  - id : int
+  - description : String
+  - weight : double
+  - origin : Facility
+  - destination : Facility
+  + Freight(id, description, weight, origin, destination)
+  + getId() : int
+  + getOrigin() : Facility
+  + getDestination() : Facility
+}
+
+class Facility <<entity>> {
+  - stationId : String
+  - name : String
+  - hasSidings : boolean
+  - numberOfSidings : int
+  + Facility(stationId, name, hasSidings, numberOfSidings)
+  + getStationId() : String
+  + getName() : String
+  + hasSidings() : boolean
+  + getNumberOfSidings() : int
+  + setStationId(stationId : String) : void
+  + setName(name : String) : void
+}
+
+class Line <<entity>> {
+  - lineId : int
+  - name : String
+  - startId : int
+  - endId : int
+  - gauge : int
+  - startName : String
+  - endName : String
+  - ownerManagingVatNumber : String
+  + Line(lineId, name, startId, endId, gauge, startName, endName, ownerManagingVatNumber)
+  + getLineId() : int
+  + getName() : String
+  + getStartId() : int
+  + getEndId() : int
+  + getGauge() : int
+  + getStartName() : String
+  + getEndName() : String
+  + getOwnerManagingVatNumber() : String
+}
+
+' Relationships
+RoutePlannerLaprUI --> RouteController : uses
+RoutePlannerLaprUI ..> Route : displays
+RoutePlannerLaprUI ..> Freight : displays
+RoutePlannerLaprUI ..> Facility : displays
+
+RouteController --> FreightRepository : uses
+RouteController --> LineRepository : uses
+RouteController --> RouteRepository : uses
+RouteController ..> Route : creates
+RouteController ..> Segment : creates
+RouteController ..> Freight : manages
+RouteController ..> Facility : manages
+RouteController ..> Line : uses
+
+FreightRepository <|.. FreightRepositoryOracle : implements
+
+FreightRepositoryOracle ..> Facility : creates
+FreightRepositoryOracle ..> Freight : creates
+
+LineRepository "1" *-- "*" Line : manages
+LineRepository ..> SegmentRepository : queries
+
+RouteRepository "1" *-- "*" Route : manages
+
+SegmentRepository "1" *-- "*" Segment : manages
+
+Route "1" *-- "*" Segment : contains
+Route "1" *-- "*" Freight : transports
+
+Segment "1" --> "1" Facility : origin
+Segment "1" --> "1" Facility : destination
+
+Freight "1" --> "1" Facility : origin
+Freight "1" --> "1" Facility : destination
+
+Line "1" --> "1" Facility : start
+Line "1" --> "1" Facility : end
+
+note right of FreightRepositoryOracle
+  **Database Access via PL/SQL**
+  Uses CallableStatement to invoke:
+  - fn_get_all_facilities()
+  - fn_get_all_pending_freights()
+
+  Returns SYS_REFCURSOR with facility
+  and freight data from Oracle DB
+end note
+
+note right of RouteController::createAndSaveRoute
+  **Route Validation:**
+  1. Validates physical line connections
+  2. Calculates real attributes from segments
+  3. Validates freight origin/destination
+  4. Creates logical route segments
+  5. Saves to in-memory repository
+end note
+
+note bottom of Route
+  **Route Composition**
+  A route is a sequence of segments
+  with assigned freights that must be
+  loaded/unloaded at specific stations
+end note
+
+@enduml

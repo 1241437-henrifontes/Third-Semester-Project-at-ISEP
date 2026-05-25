@@ -1,0 +1,120 @@
+@startuml
+skinparam shadowing false
+skinparam linetype polyline
+skinparam classAttributeIconSize 0
+skinparam roundcorner 8
+skinparam packageStyle rectangle
+
+title USEI11 – Directed Line Upgrade Plan – Class Diagram
+
+class UpgradePlannerUI {
+  -executeUSEI11() : void
+}
+
+class UpgradePlannerController {
+  +executeUSEI11() : List<Node>
+  +getNumberOfStations() : int
+}
+
+class UpgradePlanner {
+  +Upgrades(graph : Graph<Node, Double>) : List<Node>
+}
+
+class orderAndCycles {
+  {static} +topologicalOrder(graph : Graph<Node, Double>) : List<Node>
+  {static} +findFirstCycle(graph : Graph<Node, Double>) : List<Node>
+  {static} -dfs(graph : Graph<Node, Double>, current : Node, state : Map<Node, Integer>, stack : Deque<Node>) : List<Node>
+}
+
+class GraphRepository {
+  -stationGraph : Graph<Node, Double>
+  -minimalBackboneGraph : Graph<Node, Double>
+  -allPaths : ArrayList<ArrayList<LinkedList<Node>>>
+  -allShortestPaths : HashMap<Node, ArrayList<LinkedHashSet<Node>>>
+  -allDistances : HashMap<Node, ArrayList<Double>>
+   -instance : GraphRepository
+  
+  {static} +getInstance() : GraphRepository
+  +getStationGraph() : Graph<Node, Double>
+  +buildGraph() : void
+}
+
+interface Graph<Node, Double> {
+  +numVertices() : int
+  +vertices() : Iterable<Node>
+  +edges() : Collection<Edge<Node, Double>>
+  +getEdge(vOrig : Node, vDest : Node) : Edge<Node, Double>
+  +getEdge(vOrigKey : int, vDestKey : int) : Edge<Node, Double>
+  +adjVertices(vert : Node) : Collection<Node>
+  +inDegree(vert : Node) : int
+  +outDegree(vert : Node) : int
+  +addVertex(newVert : Node) : boolean
+  +addEdge(vOrig : Node, vDest : Node, weight : Double) : boolean
+  +removeVertex(vert : Node) : boolean
+  +removeEdge(vOrig : Node, vDest : Node) : boolean
+  +clone() : Graph<Node, Double>
+}
+
+class MapGraph<Node, Double> {
+  -numVerts : int
+  -vertices : ArrayList<Node>
+  -edges : Map<Node, Map<Node, Edge<Node, Double>>>
+  
+  +MapGraph(directed : boolean)
+  +numVertices() : int
+  +vertices() : Iterable<Node>
+  +edges() : Collection<Edge<Node, Double>>
+  +getEdge(vOrig : Node, vDest : Node) : Edge<Node, Double>
+  +getEdge(vOrigKey : int, vDestKey : int) : Edge<Node, Double>
+  +adjVertices(vert : Node) : Collection<Node>
+  +inDegree(vert : Node) : int
+  +outDegree(vert : Node) : int
+  +addVertex(newVert : Node) : boolean
+  +addEdge(vOrig : Node, vDest : Node, weight : Double) : boolean
+  +removeVertex(vert : Node) : boolean
+  +removeEdge(vOrig : Node, vDest : Node) : boolean
+  +clone() : Graph<Node, Double>
+}
+
+class Node {
+  -node_id : String
+  -name : String
+  -geoCoordinates : Pair<Double, Double>
+  -xyCoordinates : Pair<Double, Double>
+  
+  +getNode_id() : String
+  +setNode_id(node_id : String) : void
+  +getName() : String
+  +setName(name : String) : void
+  +getGeoCoordinates() : Pair<Double, Double>
+  +setGeoCoordinates(geoCoordinates : Pair<Double, Double>) : void
+  +getXyCoordinates() : Pair<Double, Double>
+  +setXyCoordinates(xyCoordinates : Pair<Double, Double>) : void
+  +equals(o : Object) : boolean
+  +hashCode() : int
+  +toString() : String
+}
+
+class Edge<Node, Double> {
+  -vOrig : Node
+  -vDest : Node
+  -weight : Double
+  
+  +getVOrig() : Node
+  +getVDest() : Node
+  +getWeight() : Double
+  +equals(o : Object) : boolean
+  +hashCode() : int
+  +toString() : String
+}
+
+UpgradePlannerUI --> UpgradePlannerController : uses
+UpgradePlannerController --> UpgradePlanner : uses
+UpgradePlannerController --> GraphRepository : uses
+UpgradePlanner --> orderAndCycles : uses
+GraphRepository --> Graph : contains
+Graph <|.. MapGraph : implements
+MapGraph --> Node : contains
+MapGraph --> Edge : contains
+
+@enduml

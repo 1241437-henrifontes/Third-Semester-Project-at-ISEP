@@ -1,0 +1,79 @@
+
+@startuml
+skinparam shadowing false
+skinparam linetype polyline
+skinparam classAttributeIconSize 0
+skinparam roundcorner 8
+
+class StationMeasuresUI <<UI>> {
+  + run() : void
+  - displayStationsList(stations : List<Node>) : void
+  - displayResultsTable(result : StationMeasuresResultDTO) : void
+}
+
+class StationMeasuresController <<controller>> {
+  - graphRepository : GraphRepository
+  + StationMeasuresController()
+  + calculateStationMeasures(station : Node) : StationMeasuresResultDTO
+  + getStationByName(stationName : String) : Node
+  + getStationById(stationId : String) : Node
+  + getAllStations() : List<Node>
+}
+
+class GraphRepository <<singleton, repository>> {
+  - {static} instance : GraphRepository
+  - stationGraph : Graph<Node, Double>
+  - allShortestPaths : HashMap<Node, ArrayList<List<Node>>>
+  - allDistances : HashMap<Node, ArrayList<Double>>
+  + maxDegree : double
+  + maxStrength : double
+  + {static} getInstance() : GraphRepository
+  + getStationGraph() : Graph<Node, Double>
+  + getAllShortestPaths() : HashMap<Node, ArrayList<List<Node>>>
+  + getAllDistances() : HashMap<Node, ArrayList<Double>>
+  + loadAllShortestPaths() : void
+}
+
+class StationMeasures <<service>> {
+  + {static} getGraphRepository() : GraphRepository
+  + {static} betweenness(station : Node) : double
+  + {static} harmonicCloseness(station : Node) : double
+  + {static} degree(station : Node) : double
+  + {static} strength(station : Node) : double
+  + {static} hubScore(betweenness : double, harmonicCloseness : double, strength : double) : double
+}
+
+class StationMeasuresResultDTO <<dto>> {
+  - station : Node
+  - betweenness : double
+  - harmonicCloseness : double
+  - degree : double
+  - strength : double
+  - hubScore : double
+  + StationMeasuresResultDTO(station, betweenness, harmonicCloseness, degree, strength, hubScore)
+  + getStation() : Node
+  + getBetweenness() : double
+  + getHarmonicCloseness() : double
+  + getDegree() : double
+  + getStrength() : double
+  + getHubScore() : double
+}
+
+class Node <<entity>> {
+  - name : String
+  - node_id : String
+  + getName() : String
+  + getNode_id() : String
+}
+
+StationMeasuresUI --> StationMeasuresController
+StationMeasuresController --> GraphRepository
+StationMeasuresController ..> StationMeasures : uses
+StationMeasuresController ..> StationMeasuresResultDTO : creates
+StationMeasuresController ..> Node : uses
+
+StationMeasures ..> GraphRepository : uses
+StationMeasures ..> Node : uses
+
+StationMeasuresResultDTO "1" --> "1" Node : refers to
+@enduml

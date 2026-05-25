@@ -1,0 +1,281 @@
+@startuml
+
+autonumber
+
+title USEI03 - Picking Plan Generation - Sequence Diagram
+
+actor "Planner" as PLANNER
+participant ":PickingUI" as UI
+participant "controller\n:PickingController" as CTRL
+participant "allocationRepository\n:AllocationRepository" as ALLOC_REPO
+participant "itemRepository\n:ItemRepository" as ITEM_REPO
+participant "trolleyRepository\n:TrolleyRepository" as TROLLEY_REPO
+participant "planner\n:PickingService" as SVC
+participant "allocation\n:Allocation" as ALLOC
+participant "orderLine\n:OrderLine" as LINE
+participant "item\n:Item" as ITEM
+participant "row\n:PickAllocationRow" as ROW
+participant "trolley\n:Trolley" as TROLLEY
+
+activate PLANNER
+
+PLANNER -> UI : Requests to generate picking plan
+activate UI
+
+UI -> CTRL : convertToPickRows()
+activate CTRL
+
+  CTRL -> ALLOC_REPO : getInstance()
+  activate ALLOC_REPO
+    ALLOC_REPO --> CTRL : allocationRepository
+  deactivate ALLOC_REPO
+
+  CTRL -> ALLOC_REPO : getAllocationList()
+  activate ALLOC_REPO
+    ALLOC_REPO --> CTRL : allocations
+  deactivate ALLOC_REPO
+
+  CTRL -> ITEM_REPO : getInstance()
+  activate ITEM_REPO
+    ITEM_REPO --> CTRL : itemRepository
+  deactivate ITEM_REPO
+
+  loop for each allocation in allocations
+    CTRL -> ALLOC : getLine()
+    activate ALLOC
+      ALLOC --> CTRL : orderLine
+    deactivate ALLOC
+
+    CTRL -> LINE : getStatus()
+    activate LINE
+      LINE --> CTRL : status
+    deactivate LINE
+
+    alt status == UNDISPATCHABLE
+      CTRL -> CTRL : skip this allocation
+    else status == ELIGIBLE or PARTIAL
+      CTRL -> LINE : getOrderId(), getLineNumber(), getSku(), getQty()
+      activate LINE
+        LINE --> CTRL : orderId, lineNo, sku, qty
+      deactivate LINE
+
+      CTRL -> ITEM_REPO : getItemBySKU(sku)
+      activate ITEM_REPO
+        ITEM_REPO --> CTRL : item
+      deactivate ITEM_REPO
+
+      alt item == null
+        CTRL -> CTRL : skip (SKU not found)
+      else item found
+        CTRL -> ITEM : getUnitWeight()
+        activate ITEM
+          ITEM --> CTRL : unitWeightKg
+        deactivate ITEM
+
+        alt unitWeightKg <= 0
+          CTRL -> CTRL : skip (invalid weight)
+        else valid weight
+          CTRL -> ALLOC : getBoxes()
+          activate ALLOC
+            ALLOC --> CTRL : boxes (List<Map<Box, Integer>>)
+          deactivate ALLOC
+
+          loop for each boxEntry in boxes
+            CTRL -> ROW : <<create>>(orderId, lineNo, sku, qty, boxId, aisle, bay, unitWeight)
+            activate ROW
+            deactivate ROW
+
+            CTRL -> CTRL : add row to pickRows list
+          end
+        end
+      end
+    end
+  end
+
+  CTRL --> UI : pickRows
+deactivate CTRL
+
+alt pickRows is empty
+  UI --> PLANNER : displays "NO DATA AVAILABLE" message
+  UI --> PLANNER : returns
+  deactivate UI
+  deactivate PLANNER
+else pickRows not empty
+
+  UI --> PLANNER : asks for trolley capacity (kg)
+  activate UI
+  PLANNER -> UI : provides capacity (e.g., 50.0 kg)
+  deactivate UI
+
+  UI --> PLANNER : asks for heuristic (FF/FFD/BFD)
+  activate UI
+  PLANNER -> UI : selects heuristic (e.g., BFD)
+  deactivate UI
+
+  UI --> PLANNER : asks for overflow policy (SPLIT/DEFER)
+  activate UI
+  PLANNER -> UI : selects policy (e.g., SPLIT)
+  deactivate UI
+
+  UI --> PLANNER : displays configuration and asks for confirmation
+  activate UI
+  PLANNER -> UI : confirms (Y)
+  deactivate UI
+
+  UI -> CTRL : plan(pickRows, capacityKg, heuristic, policy)
+  activate CTRL
+
+    CTRL -> SVC : plan(pickRows, capacityKg, heuristic, policy)
+    activate SVC
+
+      SVC -> SVC : clear skippedRows list
+
+      alt heuristic == FFD || heuristic == BFD
+        SVC -> SVC : Collections.sort(pickRows)
+      end
+
+      loop for each row in pickRows
+        alt policy == SPLIT
+          SVC -> SVC : processSplit(trolleys, row, capacity, heuristic)
+          activate SVC
+            SVC -> ROW : getQty(), getUnitWeightKg()
+            activate ROW
+              ROW --> SVC : qty, unitWeight
+            deactivate ROW
+
+            SVC -> SVC : remaining = qty
+
+            alt unitWeight > capacity
+              SVC -> SVC : add row to skippedRows
+            else can fit at least 1 unit
+              loop while remaining > 0
+                alt heuristic == BFD
+                  SVC -> SVC : selectTrolleyForSplit(trolleys, unitWeight, BFD)
+                  activate SVC
+                    SVC --> SVC : targetTrolley
+                  deactivate SVC
+                else heuristic == FF || FFD
+                  SVC -> SVC : selectTrolleyForSplit(trolleys, unitWeight, FF/FFD)
+                  activate SVC
+                    SVC --> SVC : targetTrolley
+                  deactivate SVC
+                end
+
+                alt targetTrolley == null
+                  SVC -> TROLLEY : <<create>>(capacityKg)
+                  activate TROLLEY
+                  deactivate TROLLEY
+                  SVC -> SVC : add trolley to trolleys list
+                  SVC -> SVC : targetTrolley = new trolley
+                end
+
+                SVC -> TROLLEY : remainingKg()
+                activate TROLLEY
+                  TROLLEY --> SVC : slack
+                deactivate TROLLEY
+
+                SVC -> SVC : canQty = floor(slack / unitWeight)
+                SVC -> SVC : placeQty = min(remaining, canQty)
+
+                SVC -> ROW : copyWithQty(placeQty)
+                activate ROW
+                  ROW --> SVC : rowFragment
+                deactivate ROW
+
+                SVC -> TROLLEY : add(rowFragment)
+                activate TROLLEY
+                deactivate TROLLEY
+
+                SVC -> SVC : remaining -= placeQty
+              end
+            end
+          deactivate SVC
+
+        else policy == DEFER
+          SVC -> SVC : processDefer(trolleys, row, capacity, heuristic)
+          activate SVC
+            SVC -> ROW : getWeightKg()
+            activate ROW
+              ROW --> SVC : allocationWeight
+            deactivate ROW
+
+            alt allocationWeight > capacity
+              SVC -> SVC : add row to skippedRows
+            else row fits in trolley
+              alt heuristic == BFD
+                SVC -> SVC : selectTrolleyForDefer(trolleys, row, BFD)
+                activate SVC
+                  SVC --> SVC : targetTrolley
+                deactivate SVC
+              else heuristic == FF || FFD
+                SVC -> SVC : selectTrolleyForDefer(trolleys, row, FF/FFD)
+                activate SVC
+                  SVC --> SVC : targetTrolley
+                deactivate SVC
+              end
+
+              alt targetTrolley == null
+                SVC -> TROLLEY : <<create>>(capacityKg)
+                activate TROLLEY
+                deactivate TROLLEY
+                SVC -> SVC : add trolley to trolleys list
+                SVC -> SVC : targetTrolley = new trolley
+              end
+
+              SVC -> TROLLEY : add(row)
+              activate TROLLEY
+              deactivate TROLLEY
+            end
+          deactivate SVC
+        end
+      end
+
+      SVC --> CTRL : trolleys
+    deactivate SVC
+
+    CTRL -> TROLLEY_REPO : getInstance()
+    activate TROLLEY_REPO
+      TROLLEY_REPO --> CTRL : trolleyRepository
+    deactivate TROLLEY_REPO
+
+    CTRL -> TROLLEY_REPO : storePlan(trolleys, heuristic, policy, capacityKg)
+    activate TROLLEY_REPO
+    deactivate TROLLEY_REPO
+
+    CTRL --> UI : trolleys
+  deactivate CTRL
+
+  UI -> CTRL : getSkippedRows()
+  activate CTRL
+    CTRL -> SVC : getSkippedRows()
+    activate SVC
+      SVC --> CTRL : skippedRows
+    deactivate SVC
+    CTRL --> UI : skippedRows
+  deactivate CTRL
+
+  UI -> UI : display picking plan
+  activate UI
+  loop for each trolley in trolleys
+    UI --> PLANNER : displays trolley #, capacity, used kg, utilisation %
+    loop for each pick in trolley.getPicks()
+      UI --> PLANNER : displays order#line, SKU, qty, box, location [aisle, bay]
+    end
+  end
+  deactivate UI
+
+  alt skippedRows not empty
+    UI --> PLANNER : displays warning: items that didn't fit
+    loop for each skipped in skippedRows
+      UI --> PLANNER : displays order#line, SKU, qty, reason (exceeds capacity)
+    end
+  end
+
+  UI --> PLANNER : Picking plan generated successfully
+
+  deactivate UI
+end
+
+deactivate PLANNER
+
+@enduml

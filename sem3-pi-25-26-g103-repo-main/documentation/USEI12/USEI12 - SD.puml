@@ -1,0 +1,38 @@
+@startuml
+autonumber
+title USEI12 - Sequence Diagram
+actor "Planner" as ACT
+participant ": MBNUI" as UI
+participant ": MBNController" as CTRL
+participant "GraphRepository" as REP
+participant "graphRepository\n:GraphRepository" as REPO
+participant "GraphToDot" as DOT
+
+activate ACT
+ACT -> UI : Open Minimal Backbone Network (MBN) feature
+activate UI
+
+UI -> CTRL** : create()
+    UI -> CTRL : generateDot()
+    activate CTRL
+    CTRL -> REP : getInstance()
+    activate REP
+    REP --> CTRL : instance
+    deactivate REP
+
+        CTRL -> REPO : getMinimalBackboneGraph()
+        activate REPO
+        REPO --> CTRL : mbn
+        deactivate REPO
+
+        CTRL -> DOT : generateDotFile(mbn)
+        activate DOT
+        DOT --> CTRL : done
+        deactivate DOT
+
+    CTRL --> UI : DOT generated (outputFiles/MBN.dot)
+    deactivate CTRL
+UI --> ACT : Show instructions to generate SVG
+deactivate UI
+deactivate ACT
+@enduml

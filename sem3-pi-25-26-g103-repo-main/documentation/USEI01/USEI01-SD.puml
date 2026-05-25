@@ -1,0 +1,92 @@
+@startuml
+
+autonumber
+
+actor "Station Storage Manager" as SSM
+participant ":WarehouseUI" as UI
+participant ":WarehouseController" as CTRL
+participant "WarehouseRepository" as WARE_REPO
+participant "warehouseRepository\n:WarehouseRepository" as WARE_REPO_OBJ
+participant "WagonRepository" as WAGON_REPO
+participant "wagonRepository\n:WagonRepository" as WAGON_REPO_OBJ
+participant "warehouse\n:Warehouse" as WARE
+participant "bay\n:Bay" as BAY
+
+activate SSM
+
+SSM -> UI : Requests to unload stock
+activate UI
+
+UI -> CTRL** : create()
+
+UI -> CTRL : getWarehouses()
+activate CTRL
+    CTRL -> WARE_REPO : getInstance()
+    activate WARE_REPO
+        WARE_REPO --> CTRL : instance
+    deactivate WARE_REPO
+
+    CTRL -> WARE_REPO_OBJ : getAllWarehouses()
+    activate WARE_REPO_OBJ
+        WARE_REPO_OBJ --> CTRL : warehouseList
+    deactivate WARE_REPO_OBJ
+
+    CTRL --> UI : warehouseList
+ deactivate CTRL
+
+UI --> SSM : shows existing warehouses and asks to select one
+
+deactivate UI
+
+SSM --> UI : selects a warehouse
+
+activate UI
+UI -> CTRL : loadBoxesIntoWarehouse(selectedWarehouse)
+
+activate CTRL
+    CTRL -> WAGON_REPO : getInstance()
+    activate WAGON_REPO
+        WAGON_REPO --> CTRL : instance
+    deactivate WAGON_REPO
+
+    CTRL -> WAGON_REPO_OBJ : getAllBoxes()
+    activate WAGON_REPO_OBJ
+        WAGON_REPO_OBJ --> CTRL : allBoxes
+    deactivate WAGON_REPO_OBJ
+
+    CTRL -> WARE : FIFOAndFEFOOrder(allBoxes, selectedWarehouse.getBays())
+    note over WARE
+        Applying ordering:
+        - FEFO (expiryDate earliest first; null last)
+        - FIFO (receivedAt oldest first)
+        - Box ID ASC (tie-breaker)
+    end note
+
+    activate WARE
+        WARE -> WARE : create priority queue
+        WARE --> WARE : queue
+
+        WARE -> WARE : addBoxesToBays(queue, bays)
+        activate WARE
+            loop for each bay while capacity and queue not empty
+                WARE -> BAY : addBox(box)
+                activate BAY
+                    BAY --> WARE : success
+                deactivate BAY
+            end
+            WARE --> WARE : success
+        deactivate WARE
+    deactivate WARE
+
+    WARE --> CTRL : success
+
+    CTRL --> UI : operationSuccess
+ deactivate CTRL
+
+UI --> SSM : Displays operation success and the current order of the stock
+
+deactivate UI
+
+deactivate SSM
+
+@enduml

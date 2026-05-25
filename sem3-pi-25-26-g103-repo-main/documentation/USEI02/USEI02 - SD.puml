@@ -1,0 +1,130 @@
+@startuml
+
+autonumber
+
+title USEI02 - Sequence Diagram
+
+actor "Station Storage Manager" as SSM
+participant ":AllocationUI" as UI
+participant ":AllocationController" as CTRL
+participant "OrderRepository" as ORDER_REPO
+participant "orderRepository\n:OrderRepository" as ORDER_REPO_OBJ
+participant "AllocationRepository" as ALLOC_REPO
+participant "allocationRepository\n:AllocationRepository" as ALLOC_REPO_OBJ
+participant "WarehouseRepository" as WARE_REPO
+participant "warehouseRepository\n:WarehouseRepository" as WARE_REPO_OBJ
+participant "ItemRepository" as ITEM_REPO
+participant "itemRepository\n:ItemRepository" as ITEM_REPO_OBJ
+participant "allocation\n:Allocation" as ALLOC
+participant "warehouse\n:Warehouse" as WH
+participant "box\n:Box" as BOX
+participant "AllocationPrinter" as ALLOC_PR
+
+activate SSM
+
+SSM -> UI : Requests to check eligibility and allocate orders
+activate UI
+
+UI -> CTRL** : create()
+UI --> SSM : asks to choose a type of flag: Strict or Partial
+SSM -> UI : chooses a type of flag
+
+UI -> CTRL : attendOrders(isStrictFlag)
+activate CTRL
+  ' Repositories access through Controller (GRASP Controller, Low Coupling)
+  CTRL -> ORDER_REPO : getInstance()
+  activate ORDER_REPO
+    ORDER_REPO --> CTRL : instance
+  deactivate ORDER_REPO
+
+  CTRL -> ORDER_REPO_OBJ : getOrders()
+  activate ORDER_REPO_OBJ
+    ORDER_REPO_OBJ --> CTRL : orders
+  deactivate ORDER_REPO_OBJ
+
+  CTRL -> ALLOC_REPO : getInstance()
+  activate ALLOC_REPO
+    ALLOC_REPO --> CTRL : instance
+  deactivate ALLOC_REPO
+
+  CTRL -> ALLOC_REPO_OBJ : allocate(orders)
+  activate ALLOC_REPO_OBJ
+    ' Prepare working copy of warehouses (don’t mutate originals)
+    ALLOC_REPO_OBJ -> WARE_REPO : getInstance()
+    activate WARE_REPO
+      WARE_REPO --> ALLOC_REPO_OBJ : instance
+    deactivate WARE_REPO
+
+    ALLOC_REPO_OBJ -> WARE_REPO_OBJ : getAllWarehouses()
+    activate WARE_REPO_OBJ
+      WARE_REPO_OBJ --> ALLOC_REPO_OBJ : warehouses
+    deactivate WARE_REPO_OBJ
+
+    ALLOC_REPO_OBJ -> ALLOC_REPO_OBJ : warehousesCopy := deepCopy(warehouses)
+
+    loop for each order in orders (priority ASC)
+      loop for each line in order.getLines()
+        ALLOC_REPO_OBJ -> ALLOC_REPO_OBJ : examine(line, warehousesCopy)
+        activate ALLOC_REPO_OBJ
+          ALLOC_REPO_OBJ -> ITEM_REPO : getInstance()
+          activate ITEM_REPO
+            ITEM_REPO --> ALLOC_REPO_OBJ : instance
+          deactivate ITEM_REPO
+
+          ALLOC_REPO_OBJ -> ITEM_REPO_OBJ : getItemBySKU(sku)
+          activate ITEM_REPO_OBJ
+            ITEM_REPO_OBJ --> ALLOC_REPO_OBJ : targetItem
+          deactivate ITEM_REPO_OBJ
+
+          loop for each wr in warehousesCopy
+            ALLOC_REPO_OBJ -> WH : getBoxesBySKU(sku, remaining)
+            activate WH
+              "WH" --> ALLOC_REPO_OBJ : boxes
+            deactivate "WH"
+
+            loop for each box in boxes
+              ALLOC_REPO_OBJ -> "BOX" : getItems()
+              activate "BOX"
+              "BOX" --> ALLOC_REPO_OBJ : items
+              ALLOC_REPO_OBJ -> "BOX" : updates the quantity of the item in the box based on the requested quantity from the order line
+              deactivate "BOX"
+            end
+          end
+  
+          ALLOC_REPO_OBJ -> ALLOC** : Allocation(line, totalAllocated, allUsedBoxes)
+          activate ALLOC
+          ALLOC --> ALLOC_REPO_OBJ : allocation
+          deactivate ALLOC
+          ALLOC_REPO_OBJ -> ALLOC_REPO_OBJ : add(allocation)
+        deactivate ALLOC_REPO_OBJ
+      end
+    end
+  deactivate ALLOC_REPO_OBJ
+
+  CTRL -> ALLOC_REPO_OBJ : getAllocationList()
+  activate ALLOC_REPO_OBJ
+  ALLOC_REPO_OBJ --> CTRL : results
+  deactivate ALLOC_REPO_OBJ
+
+  CTRL -> ALLOC_PR : elect(results, isStrictFlag)
+  activate ALLOC_PR
+    loop for each allocation in results
+      alt isStrictFlag
+        ALLOC_PR -> ALLOC_PR : determines if the order line is ELIGIBLE or UNDISPATCHABLE
+      else Partial (non-strict)
+        ALLOC_PR -> ALLOC_PR : determines if the order line is ELIGIBLE, PARTIAL or UNDISPATCHABLE
+      end
+      ALLOC_PR --> CTRL : prints order line summary with box(es) and locations
+    end
+  deactivate ALLOC_PR
+
+  CTRL --> UI : done
+ deactivate CTRL
+
+UI --> SSM : Displays eligibility/allocation results
+
+deactivate UI
+
+deactivate SSM
+
+@enduml

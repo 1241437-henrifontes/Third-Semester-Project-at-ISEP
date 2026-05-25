@@ -1,0 +1,104 @@
+@startuml
+autonumber
+
+actor "Planner" as USER
+participant ":StationMeasuresUI" as UI
+participant ":StationMeasuresController" as CTRL
+participant "GraphRepository" as GR_REPO
+participant "StationMeasures" as SM
+participant "result\n:StationMeasuresResultDTO" as DTO
+
+activate USER
+
+USER -> UI : Starts Station Measures Analysis
+activate UI
+
+    UI -> CTRL** : create()
+    activate CTRL
+        CTRL -> GR_REPO : getInstance()
+        activate GR_REPO
+            GR_REPO --> CTRL : instance
+        deactivate GR_REPO
+    deactivate CTRL
+
+    UI -> CTRL : getAllStations()
+    activate CTRL
+        CTRL -> GR_REPO : getStationGraph()
+        activate GR_REPO
+            GR_REPO --> CTRL : stationGraph
+        deactivate GR_REPO
+        CTRL --> UI : stations
+    deactivate CTRL
+
+    UI -> UI : displayStationsList(stations)
+    UI --> USER : prompts for Station Name or ID
+USER --> UI : provides station identification
+
+    UI -> CTRL : getStationByName(input)
+    activate CTRL
+        CTRL --> UI : station (or null)
+    deactivate CTRL
+
+    opt station is null
+        UI -> CTRL : getStationById(input)
+        activate CTRL
+            CTRL --> UI : station
+        deactivate CTRL
+    end
+
+    UI -> CTRL : calculateStationMeasures(station)
+    activate CTRL
+        CTRL -> SM : betweenness(station)
+        activate SM
+            SM -> GR_REPO : getAllShortestPaths()
+            activate GR_REPO
+                GR_REPO --> SM : allShortestPaths
+            deactivate GR_REPO
+            SM --> CTRL : betweenness
+        deactivate SM
+
+        CTRL -> SM : harmonicCloseness(station)
+        activate SM
+            SM -> GR_REPO : getAllDistances()
+            activate GR_REPO
+                GR_REPO --> SM : allDistances
+            deactivate GR_REPO
+            SM --> CTRL : harmonicCloseness
+        deactivate SM
+
+        CTRL -> SM : degree(station)
+        activate SM
+            SM -> GR_REPO : getStationGraph()
+            activate GR_REPO
+                GR_REPO --> SM : stationGraph
+            deactivate GR_REPO
+            SM --> CTRL : degree
+        deactivate SM
+
+        CTRL -> SM : strength(station)
+        activate SM
+            SM -> GR_REPO : getStationGraph()
+            activate GR_REPO
+                GR_REPO --> SM : stationGraph
+            deactivate GR_REPO
+            SM --> CTRL : strength
+        deactivate SM
+
+        CTRL -> SM : hubScore(betweenness, harmonicCloseness, strength)
+        activate SM
+            SM --> CTRL : hubScore
+        deactivate SM
+
+        CTRL -> DTO** : create(station, betweenness, harmonicCloseness, degree, strength, hubScore)
+        
+        CTRL --> UI : result (DTO)
+    deactivate CTRL
+
+    UI -> UI : displayResultsTable(result)
+    UI --> USER : Displays measures analysis results
+
+deactivate UI
+
+deactivate USER
+
+@enduml

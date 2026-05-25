@@ -1,0 +1,107 @@
+@startuml
+skinparam shadowing false
+skinparam linetype polyline
+skinparam classAttributeIconSize 0
+skinparam roundcorner 8
+
+class RangeSearchUI <<UI>> {
+  + run() : void
+  + requestRange() : Range
+  + requestFilters() : RailwayStationSearchFilters
+  + booleanRequest(message : String) : boolean
+  + requestCountries() : List<Country>
+}
+
+class RangeSearchController <<controller>> {
+  + searchRange(filters : RailwayStationSearchFilters, range : Range) : void
+  + alreadyExists(filters : RailwayStationSearchFilters) : Boolean
+  + getRangeSearchRepository() : RangeSearchRepository
+}
+
+class RangeSearchRepository <<singleton, repository>> {
+  - rangeSearchMap : HashMap<RailwayStationSearchFilters, RangeSearch>
+  + {static} getInstance() : RangeSearchRepository
+  + rangeSearchExist(filters : RailwayStationSearchFilters) : Boolean
+  + addRangeSearch(filters : RailwayStationSearchFilters, rangeSearch : RangeSearch) : void
+  + getRangeSearchMap() : HashMap<RailwayStationSearchFilters, RangeSearch>
+}
+
+class Range <<value object>> {
+  - maxLat : double
+  - minLat : double
+  - maxLon : double
+  - minLon : double
+  + getMaxLat() : double
+  + getMinLat() : double
+  + getMaxLon() : double
+  + getMinLon() : double
+  + contains(lat : double, lon : double) : boolean
+  + valid() : boolean
+}
+
+class RangeSearch <<service>> {
+  - resultStations : HashMap<String, RailwayStation>
+  - range : Range
+  + RangeSearch(range : Range)
+  + getResultStations() : HashMap<String, RailwayStation>
+  + search(node : KDnode, level : Boolean, filters : RailwayStationSearchFilters) : void
+}
+
+class RailwayStationSearchFilters <<value object>> {
+  - isCity : Boolean
+  - isMainStation : Boolean
+  - isAirport : Boolean
+  - countries : List<Country>
+  + respectsFilters(station : RailwayStation) : boolean
+}
+
+class RailwayStation <<entity>> {
+  + getName() : String
+  + isCity() : boolean
+  + isMainStation() : boolean
+  + isAirport() : boolean
+  + getCountry() : Country
+  + getLatitude() : double
+  + getLongitude() : double
+}
+
+class KDnode <<tree node>> {
+  + getLatitude() : double
+  + getLongitude() : double
+  + getLeft() : KDnode
+  + getRight() : KDnode
+  + getStations() : List<RailwayStation>
+}
+
+class Country <<enum>> {
+}
+
+class StationRepository <<singleton, repository>> {
+  + {static} getInstance() : StationRepository
+  + getKdtree() : KDTree
+}
+
+class KDTree <<structure>> {
+  + getRoot() : KDnode
+}
+
+class FilePrinterStations <<utility>> {
+  + {static} printAllRangeSearch(repo : RangeSearchRepository) : void
+}
+
+
+RangeSearchUI --> RangeSearchController
+RangeSearchController --> RangeSearchRepository
+RangeSearchController --> StationRepository
+RangeSearchController ..> Range : uses
+RangeSearchController ..> RailwayStationSearchFilters : uses
+
+RangeSearchRepository ..> RangeSearch : stores >
+
+RangeSearch ..> KDnode : traverses >
+KDnode "1" o-- "*" RailwayStation : holds >
+RailwayStation "1" --> "1" Country : identified by >
+
+FilePrinterStations ..> RangeSearchRepository
+
+@enduml

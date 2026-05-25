@@ -1,0 +1,112 @@
+@startuml
+autonumber
+
+actor "Operations Analyst" as USER
+participant ":MaxFlowUI" as UI
+participant ":MaxFlowController" as CTRL
+participant "GraphRepository" as GR_REPO
+participant "MaxFlowAlgorithm" as MFA
+participant "result\n:MaxFlowResult" as RESULT
+participant "dto\n:MaxFlowResultDTO" as DTO
+
+activate USER
+
+USER -> UI : Starts Maximum Flow Analysis
+activate UI
+
+    UI -> CTRL** : create()
+    activate CTRL
+        CTRL -> GR_REPO : getInstance()
+        activate GR_REPO
+            GR_REPO --> CTRL : instance
+        deactivate GR_REPO
+    deactivate CTRL
+
+    UI -> CTRL : getAllStations()
+    activate CTRL
+        CTRL -> GR_REPO : getStationGraph()
+        activate GR_REPO
+            GR_REPO --> CTRL : stationGraph
+        deactivate GR_REPO
+        CTRL --> UI : stations
+    deactivate CTRL
+
+    UI -> UI : displayStationsList(stations)
+    UI --> USER : prompts for Source Station
+USER --> UI : provides source station identification
+
+    UI -> CTRL : getStationByName(sourceInput)
+    activate CTRL
+        CTRL --> UI : sourceStation (or null)
+    deactivate CTRL
+
+    opt sourceStation is null
+        UI -> CTRL : getStationById(sourceInput)
+        activate CTRL
+            CTRL --> UI : sourceStation
+        deactivate CTRL
+    end
+
+    UI --> USER : prompts for Sink Station
+USER --> UI : provides sink station identification
+
+    UI -> CTRL : getStationByName(sinkInput)
+    activate CTRL
+        CTRL --> UI : sinkStation (or null)
+    deactivate CTRL
+
+    opt sinkStation is null
+        UI -> CTRL : getStationById(sinkInput)
+        activate CTRL
+            CTRL --> UI : sinkStation
+        deactivate CTRL
+    end
+
+    UI -> CTRL : calculateMaxFlow(sourceStation, sinkStation)
+    activate CTRL
+        CTRL -> GR_REPO : getStationGraph()
+        activate GR_REPO
+            GR_REPO --> CTRL : stationGraph
+        deactivate GR_REPO
+
+        CTRL -> MFA : calculateMaxFlow(stationGraph, sourceStation, sinkStation)
+        activate MFA
+            MFA -> MFA : edmondsKarp(stationGraph, sourceStation, sinkStation)
+            activate MFA
+                loop while augmenting path exists
+                    MFA -> MFA : bfs(residualGraph, sourceStation, sinkStation, parent)
+                    activate MFA
+                        MFA --> MFA : pathExists
+                    deactivate MFA
+
+                    opt pathExists
+                        MFA -> MFA : findMinCapacity(path)
+                        MFA -> MFA : updateResidualGraph(path, minCapacity)
+                    end
+                end
+
+                MFA -> RESULT** : create(maxFlowValue, residualGraph, maxFlowGraph, augmentingPaths)
+                MFA --> MFA : result
+            deactivate MFA
+
+            MFA --> CTRL : result
+        deactivate MFA
+
+        CTRL -> MFA : getTemporalComplexity()
+        activate MFA
+            MFA --> CTRL : temporalComplexity
+        deactivate MFA
+
+        CTRL -> DTO** : create(sourceStation, sinkStation, maxFlowValue, temporalComplexity)
+
+        CTRL --> UI : dto
+    deactivate CTRL
+
+    UI -> UI : displayMaxFlowResult(dto)
+    UI --> USER : Displays max flow analysis results\n(source stid, sink stid, maxFlowValue, temporal complexity)
+
+deactivate UI
+
+deactivate USER
+
+@enduml

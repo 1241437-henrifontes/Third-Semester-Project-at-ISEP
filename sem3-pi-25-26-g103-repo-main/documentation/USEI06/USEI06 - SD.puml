@@ -1,0 +1,225 @@
+@startuml
+
+autonumber
+
+title USEI06 - Sequence Diagram
+
+actor "Planner" as ACT
+participant ":TimeZoneIndexUI" as UI
+participant ":TimeZoneIndexController" as CTRL
+participant "StationRepository" as REPO
+participant "latitudeTree\n:AVLTree<RailwayStationLatitude>" as LAT_TREE
+participant "longitudeTree\n:AVLTree<RailwayStationLongitude>" as LON_TREE
+participant "timeZoneCountryTree\n:AVLTree<TimeZoneIndex>" as TZ_TREE
+participant "BST\n:BST" as BST
+participant "CountryIndex" as COUNTRY_INDEX
+participant "TimeZoneIndex" as TZ_INDEX
+participant "RailwayStationLatitude\n:RailwayStationLatitude" as RS_LAT
+participant "RailwayStationLongitude\n:RailwayStationLongitude" as RS_LON
+participant "RailwayStation\n:RailwayStation" as RS
+participant "FilePrinterStations\n:FilePrinterStations" as PRN
+
+activate ACT
+ACT -> UI : Requests queries over time zones and stations
+activate UI
+
+UI -> CTRL** : create()
+
+== Option A: Search by Latitude ==
+UI -> UI : reads min,max latitude
+UI -> CTRL : printStationsByLat(min,max)
+activate CTRL
+  CTRL -> REPO : getInstance()
+  activate REPO
+  REPO --> CTRL : instance
+  deactivate REPO
+
+    CTRL -> REPO : searchByLatitudeRange(min,max)
+    activate REPO
+      REPO -> LAT_TREE : root()
+      activate LAT_TREE
+        LAT_TREE --> REPO : node
+      deactivate LAT_TREE
+
+      loop latitudeRangeQuery(node,min,max,result)
+        REPO -> BST : latitudeRangeQuery(Node,min,max,result)
+        activate BST
+          BST -> RS_LAT : getLatitude()
+          activate RS_LAT
+          RS_LAT --> BST : lat
+          deactivate RS_LAT
+
+          alt lat >= min
+            BST -> BST : recurse left
+          end
+          alt lat <= max
+            BST -> BST : recurse right
+          end
+
+          alt min <= lat <= max
+            BST -> REPO : add(element)
+          deactivate BST
+          end
+      end
+
+      REPO --> CTRL : stationsList
+      deactivate REPO
+    CTRL -> PRN : printLat(min,max, getStationsByLat(min,max))
+    activate PRN
+    PRN -> PRN : formats and writes lines to file
+    PRN --> CTRL : done
+  deactivate PRN
+CTRL --> UI : done
+Deactivate CTRL
+
+== Option B: Search by Longitude ==
+UI -> UI : reads min,max longitude
+UI -> CTRL : printStationsByLon(min,max)
+activate CTRL
+  CTRL -> REPO : getInstance()
+  activate REPO
+  REPO --> CTRL : instance
+  deactivate REPO
+    CTRL -> REPO : searchByLongitudeRange(min,max)
+    activate REPO
+      REPO -> LON_TREE : root()
+      activate LON_TREE
+        LON_TREE --> REPO : node
+      deactivate LON_TREE
+
+      loop longitudeRangeQuery(node,min,max,result)
+        REPO -> BST : longitudeRangeQuery(Node,min,max,result)
+        activate BST
+          BST -> RS_LON : getLongitude()
+          activate RS_LON
+          RS_LON --> BST : lon
+          deactivate RS_LON
+
+          alt lon >= min
+            BST -> BST : recurse left
+          end
+          alt lon <= max
+            BST -> BST : recurse right
+          end
+
+          alt min <= lon <= max
+            BST -> REPO : add(element)
+            deactivate BST
+          end
+      end
+      REPO --> CTRL : stationsList
+    deactivate REPO
+  CTRL -> PRN : printLon(min, max, getStationsByLon(min, max))
+  activate PRN
+  PRN -> PRN : formats and writes lines to file
+  PRN --> CTRL : done
+  deactivate PRN
+CTRL --> UI : done
+Deactivate CTRL
+
+== Option C: Search by Time Zone Group and Country ==
+UI -> UI : selects TimeZoneGroup tzG and Country c
+UI -> CTRL : printStationsByTZC(tzG,c)
+activate CTRL
+  CTRL -> REPO : getInstance()
+  activate REPO
+  REPO --> CTRL : instance
+  deactivate REPO
+    CTRL -> REPO : searchByTimeZoneAndCountry(tzG,c)
+    activate REPO
+      REPO -> TZ_TREE : find(root, new TimeZoneIndex(tzG))
+      activate TZ_TREE
+        TZ_TREE --> REPO : tzNode
+      deactivate TZ_TREE
+
+      alt tzNode != null
+        REPO -> TZ_INDEX : getCountries()
+        activate TZ_INDEX
+          TZ_INDEX --> REPO : countriesTree
+        deactivate TZ_INDEX
+
+        REPO -> COUNTRY_INDEX : find(root, new CountryIndex(c))
+        activate COUNTRY_INDEX
+          COUNTRY_INDEX --> REPO : countryNode
+        deactivate COUNTRY_INDEX
+
+        alt countryNode != null
+          REPO -> COUNTRY_INDEX : getStationsInOrder()
+          activate COUNTRY_INDEX
+            COUNTRY_INDEX --> REPO : stationsInOrder
+          deactivate COUNTRY_INDEX
+        else
+          REPO -> REPO : result := empty
+        end
+      else
+        REPO -> REPO : result := empty
+      end
+
+      REPO --> CTRL : stationsList
+    deactivate REPO
+  CTRL -> PRN : printTZC(tzG,c, getStationsByTZC(tzG,c))
+  activate PRN
+  PRN -> PRN : formats and writes lines to file
+  PRN --> CTRL : done
+  deactivate PRN
+CTRL --> UI : done
+Deactivate CTRL
+
+== Option D: Search by Window of Time Zone Groups ==
+UI -> UI : selects lower, upper TimeZoneGroup
+UI -> CTRL : printStationsByWindowQuery(lower,upper)
+activate CTRL
+  CTRL -> REPO : getInstance()
+  activate REPO
+  REPO --> CTRL : instance
+  deactivate REPO
+    CTRL -> REPO : getStationsByTimeZoneWindow(lower,upper)
+    activate REPO
+      REPO -> TZ_TREE : root()
+      TZ_TREE --> REPO : node
+
+      loop windowQuery(node,lower,upper,result)
+        REPO -> TZ_INDEX : getTimeZoneGroup()
+        activate TZ_INDEX
+          TZ_INDEX --> REPO : tz
+        deactivate TZ_INDEX
+        alt tz > lower
+          REPO -> REPO : recurse left
+        end
+        alt tz < upper
+          REPO -> REPO : recurse right
+        end
+
+        alt lower <= tz <= upper
+          REPO -> TZ_INDEX : getCountries().inOrder()
+          activate TZ_INDEX
+            TZ_INDEX --> REPO : countriesInOrder
+          deactivate TZ_INDEX
+
+          loop for each ci in countries
+            REPO -> COUNTRY_INDEX : getStationsInOrder()
+            activate COUNTRY_INDEX
+              COUNTRY_INDEX --> REPO : stationsInOrder
+            deactivate COUNTRY_INDEX
+            REPO -> REPO : add to result
+          end
+        end
+      end
+
+      REPO --> CTRL : stationsList
+    deactivate REPO
+  CTRL -> PRN : printWindow(lower,upper, getStationsByWindow(lower,upper))
+  activate PRN
+  PRN -> PRN : formats and writes lines to file
+  PRN --> CTRL : done
+  deactivate PRN
+CTRL --> UI : done
+Deactivate CTRL
+
+UI --> ACT : Displays printed file locations/summaries
+
+deactivate UI
+
+deactivate ACT
+
+@enduml

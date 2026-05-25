@@ -1,0 +1,89 @@
+@startuml
+
+autonumber
+
+actor "Planner" as USER
+participant ":RangeSearchUI" as UI
+participant ":RangeSearchController" as CTRL
+participant "RangeSearchRepository" as RS_REPO
+participant "rangeSearchRepository\n:RangeSearchRepository" as RS_REPO_OBJ
+participant "StationRepository" as ST_REPO
+participant "stationRepository\n:StationRepository" as ST_REPO_OBJ
+participant "kdtree\n:KDTree" as KDTREE
+participant "root\n:KDnode" as ROOT
+participant "rangeSearch\n:RangeSearch" as RS
+participant "FilePrinterStations" as PRINTER
+
+activate USER
+
+USER -> UI : Starts Range Search
+activate UI
+
+UI -> UI : requestRange() / requestFilters()
+UI --> USER : prompts inputs
+USER --> UI : provides range and filters
+
+UI -> CTRL ** : create()
+
+UI -> CTRL : alreadyExists(filters)
+activate CTRL
+    CTRL -> RS_REPO : getInstance()
+    activate RS_REPO
+        RS_REPO --> CTRL : instance
+    deactivate RS_REPO
+
+    CTRL -> RS_REPO_OBJ : rangeSearchExist(filters)
+    activate RS_REPO_OBJ
+        RS_REPO_OBJ --> CTRL : exists | not exists
+    deactivate RS_REPO_OBJ
+CTRL --> UI : exists? (Boolean)
+deactivate CTRL
+
+alt not exists
+    UI -> CTRL : searchRange(filters, range)
+    activate CTRL
+        CTRL -> RS ** : new RangeSearch(range)
+
+        CTRL -> ST_REPO : getInstance()
+        activate ST_REPO
+            ST_REPO --> CTRL : instance
+        deactivate ST_REPO
+
+        CTRL -> ST_REPO_OBJ : getKdtree()
+        activate ST_REPO_OBJ
+            ST_REPO_OBJ --> CTRL : kdtree
+        deactivate ST_REPO_OBJ
+
+        CTRL -> KDTREE : getRoot()
+        activate KDTREE
+            KDTREE --> CTRL : root
+        deactivate KDTREE
+
+        CTRL -> RS : search(root, true, filters)
+        activate RS
+            RS --> RS : traverse KD-Tree
+            RS --> CTRL : results
+        deactivate RS
+
+        CTRL -> RS_REPO_OBJ : addRangeSearch(filters, RS)
+        activate RS_REPO_OBJ
+            RS_REPO_OBJ --> CTRL : stored
+        deactivate RS_REPO_OBJ
+    CTRL --> UI : search completed
+    deactivate CTRL
+else already exists
+    UI -> UI : notify "Range search already exists. Retrieving..."
+end
+
+UI -> PRINTER : printAllRangeSearch(RS_REPO_OBJ)
+activate PRINTER
+PRINTER --> UI : file path / confirmation
+deactivate PRINTER
+
+UI --> USER : Displays completion message
+
+deactivate UI
+
+deactivate USER
+
+@enduml

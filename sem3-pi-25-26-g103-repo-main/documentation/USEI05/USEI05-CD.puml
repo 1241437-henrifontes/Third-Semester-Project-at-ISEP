@@ -1,0 +1,184 @@
+@startuml
+skinparam shadowing false
+skinparam linetype polyline
+skinparam classAttributeIconSize 0
+skinparam roundcorner 8
+
+
+
+class ReturnsUI <<UI>> {
+  - controller : ReturnsController
+  + run() : void
+  - showQuarantine() : void
+  - processAllReturns() : void
+}
+
+class ReturnsController <<controller>> {
+  - itemRepository : ItemRepository
+  - returnRepository : ReturnRepository
+  - warehouseRepository : WarehouseRepository
+  - quarantine : Quarantine
+  + loadReturnsToQuarantine() : void
+  + processReturns() : void
+  + printQuarantine() : void
+  + getQuarantine() : Quarantine
+}
+
+class ReturnRepository <<singleton, repository>> {
+  - returns : List<Return>
+  + {static} getInstance() : ReturnRepository
+  + getAllReturns() : List<Return>
+  + addReturn(r : Return) : void
+  + loadReturns(itemRepository : ItemRepository) : void
+}
+
+class ItemRepository <<singleton, repository>> {
+  - items : List<Item>
+  + {static} getInstance() : ItemRepository
+  + getItems() : List<Item>
+  + loadItems() : void
+  + getItemBySKU(sku : SKU) : Item
+  + setItems(items : List<Item>) : void
+}
+
+class WarehouseRepository <<singleton, repository>> {
+  - warehouses : Map<String, Warehouse>
+  + {static} getInstance() : WarehouseRepository
+  + getAllWarehouses() : List<Warehouse>
+  + getWarehouse(id : String) : Warehouse
+  + updateWarehouse(warehouse : Warehouse) : void
+  + setWarehouses(warehouses : Map<String, Warehouse>) : void
+}
+
+class Quarantine <<service>> {
+  - quarantineSet : Set<Return>
+  - auditLogPath : String
+  - itemRepository : ItemRepository
+  - warehouses : List<Warehouse>
+  - warehouseRepository : WarehouseRepository
+  + Quarantine(itemRepository : ItemRepository, warehouses : List<Warehouse>)
+  + addReturn(r : Return) : void
+  + processAllReturns() : List<Warehouse>
+  - inspectReturn(r : Return) : void
+  - canBeRestocked(reason : ReturnReason) : boolean
+  - logInspection(r : Return, action : String) : void
+  + printQuarantine() : void
+  + warehouseHasAvailableBayFromLayout(layout : List<List<Bay>>) : boolean
+  + doesBoxFitInBay(bay : Bay) : boolean
+}
+
+class ReadFromCSV <<utility>> {
+  + {static} readFile<T>(fileName : String, mapper : Function<String[], T>) : List<T>
+}
+
+class Return <<entity>> {
+  - returnId : String
+  - sku : SKU
+  - quantity : int
+  - timestamp : LocalDateTime
+  - expiryDate : LocalDateTime
+  - reason : ReturnReason
+  - processed : boolean
+  - action : ReturnAction
+  + Return(returnId : String, sku : SKU, quantity : int, timestamp : LocalDateTime, expiryDate : LocalDateTime, reason : ReturnReason)
+  + getReturnId() : String
+  + getSku() : SKU
+  + getQuantity() : int
+  + getTimestamp() : LocalDateTime
+  + getExpiryDate() : LocalDateTime
+  + getReason() : ReturnReason
+  + isProcessed() : boolean
+  + setProcessed(processed : boolean) : void
+  + getAction() : ReturnAction
+  + setAction(action : ReturnAction) : void
+  + compareTo(o : Return) : int
+}
+
+enum ReturnReason <<enumeration>> {
+  CUSTOMER_REMORSE
+  DAMAGED
+  EXPIRED
+  CYCLE_COUNT
+}
+
+enum ReturnAction <<enumeration>> {
+  RESTOCKED
+  DISCARDED
+}
+
+class Warehouse <<entity>> {
+  - warehouseID : String
+  - layout : List<List<Bay>>
+  + getWarehouseID() : String
+  + addBay(bay : Bay) : void
+  + getLayout() : List<List<Bay>>
+  + getBays() : List<Bay>
+  + FIFOAndFEFOOrder(boxes : List<Box>, bays : List<Bay>) : void
+}
+
+class Bay <<entity>> {
+  - warehouseId : String
+  - aisle : int
+  - bay : int
+  - capacityBoxes : int
+  - boxes : List<Box>
+  + getCapacityBoxes() : int
+  + getBoxes() : List<Box>
+  + addBox(box : Box) : boolean
+}
+
+class Box <<entity>> {
+  - boxId : String
+  - receivedAt : LocalDateTime
+  - expiryDate : LocalDate
+  - items : Map<Item, Integer>
+  + getBoxId() : String
+  + getReceivedAt() : LocalDateTime
+  + getExpiryDate() : LocalDate
+  + getItems() : Map<Item, Integer>
+  + addItem(item : Item, quantity : int) : void
+  + setAssignedBay(bay : Bay) : void
+}
+
+class Item <<entity>> {
+  - sku : SKU
+  - name : String
+  - category : String
+  - unit : String
+  - volume : float
+  - unitWeight : float
+  + getSku() : SKU
+}
+
+class SKU <<value object>> {
+  - sku : String
+  + getSku() : String
+}
+
+
+ReturnsUI --> ReturnsController
+
+
+ReturnsController --> ReturnRepository
+ReturnsController --> ItemRepository
+ReturnsController --> WarehouseRepository
+ReturnsController --> Quarantine
+
+Quarantine --> ItemRepository : uses
+Quarantine --> WarehouseRepository : updates
+Quarantine "1" o-- "*" Return : manages >
+Quarantine ..> Warehouse : restocks to >
+Quarantine ..> Box : creates >
+
+ReturnRepository ..> ReadFromCSV
+
+Return "1" --> "1" SKU : identified by >
+Return "1" --> "1" ReturnReason : has >
+Return "1" --> "0..1" ReturnAction : results in >
+
+Warehouse "1" o-- "*" Bay : contains >
+Bay "1" o-- "*" Box : holds >
+Box "*" -- "*" Item : stores >
+Item "1" --> "1" SKU : identified by >
+
+@enduml

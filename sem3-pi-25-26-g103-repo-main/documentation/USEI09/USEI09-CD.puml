@@ -1,0 +1,137 @@
+@startuml
+skinparam shadowing false
+skinparam linetype polyline
+skinparam classAttributeIconSize 0
+skinparam roundcorner 8
+
+title USEI09 – Nearest-N Proximity Search – Class Diagram
+
+' ===== ENTIDADES / VALUE OBJECTS =====
+class RailwayStation <<entity>> {
+  - name : String
+  - latitude : double
+  - longitude : double
+  - country : Country
+  - timeZone : String
+  - timeZoneGroup : TimeZoneGroup
+  - isCity : boolean
+  - isMainStation : boolean
+  - isAirport : boolean
+  + getName() : String
+  + getLatitude() : double
+  + getLongitude() : double
+  + getCountry() : Country
+  + getTimezone() : String
+  + getTimeZoneGroup() : TimeZoneGroup
+  + isCity() : boolean
+  + isMainStation() : boolean
+  + isAirport() : boolean
+}
+
+enum TimeZoneGroup {
+  CET
+  WET_GMT
+  EET
+  FET
+}
+
+class Result <<value object>> {
+  - station : RailwayStation
+  - distanceKm : double
+  + Result(station : RailwayStation, distanceKm : double)
+  + getStation() : RailwayStation
+  + getDistanceKm() : double
+}
+
+class NearestNQuery <<value object>> {
+  - latitude : double
+  - longitude : double
+  - n : int
+  - timeZoneGroup : TimeZoneGroup   ' optional/null
+  - country : Country               ' optional/null
+  - isMainStation : Boolean         ' optional/null (null = ignore)
+  - isCity : Boolean                ' optional/null
+  + NearestNQuery(lat : double, lon : double, n : int, tzGroup : TimeZoneGroup)
+  + getLatitude() : double
+  + getLongitude() : double
+  + getN() : int
+  + getTimeZoneGroup() : TimeZoneGroup
+  + getCountry() : Country
+  + getIsMainStation() : Boolean
+  + getIsCity() : Boolean
+}
+
+' ===== UTILITÁRIOS (USADOS PELO SERVICE) =====
+class ValidationUtils <<utility>> {
+  + requireValidCoordinates(lat : double, lon : double) : void
+  + requirePositiveN(n : int) : void
+}
+
+class DistanceUtils <<utility>> {
+  + {static} EARTH_RADIUS_KM : double = 6371.0
+  + {static} haversine(lat1 : double, lon1 : double, lat2 : double, lon2 : double) : double
+}
+
+' ===== INTEGRAÇÃO KD-TREE (USEI07) =====
+interface SpatialIndex {
+  + nearestN(query : NearestNQuery) : List<Result>
+  + size() : int
+  + rangeQuery(latMin : double, latMax : double, lonMin : double, lonMax : double) : List<RailwayStation>
+}
+
+class KDNode {
+  - splitAxis : int
+  - stations : List<RailwayStation>  ' bucket: multiple stations may share exact coords
+  - left : KDNode
+  - right : KDNode
+}
+
+class KDTree <<adapter>> {
+  - root : KDNode
+  - size : int
+  - height : int
+  + bulkBuild(latAVL : Object, lonAVL : Object) : KDTree
+  + nearestN(query : NearestNQuery) : List<Result>
+  + rangeQuery(latMin : double, latMax : double, lonMin : double, lonMax : double) : List<RailwayStation>
+}
+
+' ===== CAMADA APLICAÇÃO =====
+class NearestNService <<service>> {
+  - index : SpatialIndex
+  + NearestNService(index : SpatialIndex)
+  + findNearest(query : NearestNQuery) : List<Result>
+}
+
+class NearestNController <<controller>> {
+  - service : NearestNService
+  + NearestNController(service : NearestNService)
+  + getNearest(lat : double, lon : double, n : int, tzGroup : TimeZoneGroup) : List<Result>
+}
+
+class NearestNUI <<UI>> {
+  - controller : NearestNController
+  + NearestNUI(controller : NearestNController)
+  + run() : void
+}
+
+' ===== RELAÇÕES (sem classes soltas) =====
+NearestNUI --> NearestNController : controller
+NearestNController --> NearestNService : service
+NearestNController ..> NearestNQuery : builds
+NearestNService --> SpatialIndex : uses
+NearestNService ..> ValidationUtils : validates
+NearestNService ..> DistanceUtils : uses
+SpatialIndex --> Result : returns
+Result --> RailwayStation : station
+NearestNService ..> NearestNQuery : consumes
+
+' Added explicit links so TimeZoneGroup, KDNode and KDTree are connected
+RailwayStation ..> TimeZoneGroup
+KDNode --> RailwayStation : holds *>
+KDTree ..|> SpatialIndex : implements >
+NearestNQuery ..> TimeZoneGroup
+
+' Additional explicit connection between KDTree and its root node
+KDTree "1" *-- "1" KDNode : root >
+
+@enduml

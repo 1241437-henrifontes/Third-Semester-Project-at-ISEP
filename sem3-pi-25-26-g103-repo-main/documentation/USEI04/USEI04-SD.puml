@@ -1,0 +1,126 @@
+@startuml
+
+autonumber
+
+actor "Warehouse Operator" as WO
+participant ":PathSequencingUI" as UI
+participant ":PathSequencingController" as CTRL
+participant "TrolleyRepository" as TROLLEY_REPO
+participant "trolleyRepository\n:TrolleyRepository" as TROLLEY_REPO_OBJ
+participant "PickPathSequencer\n:PickPathSequencer" as SEQUENCER
+participant "trolley\n:Trolley" as TROLLEY
+participant "PickAllocationRow\n:PickAllocationRow" as ROW
+participant "bay\n:Bay" as BAY
+
+activate WO
+
+WO -> UI : Requests to sequence pick paths
+activate UI
+
+UI -> CTRL** : create()
+
+UI -> TROLLEY_REPO : getInstance()
+activate TROLLEY_REPO
+    TROLLEY_REPO --> UI : instance
+deactivate TROLLEY_REPO
+
+UI -> TROLLEY_REPO_OBJ : hasTrolleys()
+activate TROLLEY_REPO_OBJ
+    TROLLEY_REPO_OBJ --> UI : true
+deactivate TROLLEY_REPO_OBJ
+
+UI -> TROLLEY_REPO_OBJ : getAllTrolleys()
+activate TROLLEY_REPO_OBJ
+    TROLLEY_REPO_OBJ --> UI : trolleys
+deactivate TROLLEY_REPO_OBJ
+
+UI -> TROLLEY_REPO_OBJ : getTrolleyCount()
+activate TROLLEY_REPO_OBJ
+    TROLLEY_REPO_OBJ --> UI : count
+deactivate TROLLEY_REPO_OBJ
+
+UI -> TROLLEY_REPO_OBJ : getLastHeuristic()
+activate TROLLEY_REPO_OBJ
+    TROLLEY_REPO_OBJ --> UI : heuristic
+deactivate TROLLEY_REPO_OBJ
+
+UI -> TROLLEY_REPO_OBJ : getLastPolicy()
+activate TROLLEY_REPO_OBJ
+    TROLLEY_REPO_OBJ --> UI : policy
+deactivate TROLLEY_REPO_OBJ
+
+UI -> TROLLEY_REPO_OBJ : getLastTrolleyCapacity()
+activate TROLLEY_REPO_OBJ
+    TROLLEY_REPO_OBJ --> UI : capacity
+deactivate TROLLEY_REPO_OBJ
+
+UI -> CTRL : process(trolleys)
+activate CTRL
+
+loop for each trolley in trolleys
+    CTRL -> TROLLEY : getPicks()
+    activate TROLLEY
+        TROLLEY --> CTRL : picks
+    deactivate TROLLEY
+
+    loop for each row in picks
+        CTRL -> ROW : getAisle()
+        activate ROW
+            ROW --> CTRL : aisle
+        deactivate ROW
+
+        CTRL -> ROW : getBay()
+        activate ROW
+            ROW --> CTRL : bay
+        deactivate ROW
+
+        CTRL -> BAY** : create()
+    end
+
+    CTRL -> SEQUENCER : removeDuplicates(bays)
+    activate SEQUENCER
+        note over SEQUENCER
+            Removes duplicate bays
+            based on aisle and bay
+        end note
+        SEQUENCER --> CTRL : cleanBays
+    deactivate SEQUENCER
+
+
+    CTRL -> SEQUENCER : strategyA(cleanBays)
+    activate SEQUENCER
+        note over SEQUENCER
+            Deterministic Sweep:
+            Sort by aisle, then bay
+        end note
+        SEQUENCER --> CTRL : pathA
+    deactivate SEQUENCER
+    CTRL --> UI : pathA
+    deactivate CTRL
+    UI --> WO : Displays path sequencing results
+    deactivate UI
+    activate CTRL
+
+
+    CTRL -> SEQUENCER : strategyB(cleanBays)
+    activate SEQUENCER
+        note over SEQUENCER
+            Nearest Neighbor:
+            Find closest unvisited bay
+            at each step
+        end note
+        SEQUENCER --> CTRL : pathB
+    deactivate SEQUENCER
+
+
+    CTRL --> UI : pathB
+    activate UI
+    deactivate CTRL
+
+    UI --> WO : Displays path sequencing results
+ end
+deactivate UI
+
+deactivate WO
+
+@enduml

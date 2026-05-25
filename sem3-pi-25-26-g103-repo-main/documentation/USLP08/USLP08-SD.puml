@@ -1,0 +1,252 @@
+@startuml USLP08-SD
+autonumber
+
+actor "Freight Manager" as USER
+participant ":RoutePlannerLaprUI" as UI
+participant ":RouteController" as CTRL
+participant "FreightRepositoryOracle" as FREIGHT_REPO
+participant "LineRepository" as LINE_REPO
+participant "RouteRepository" as ROUTE_REPO
+participant ":Connection" as CONN
+participant ":CallableStatement" as CS
+participant ":Route" as ROUTE
+participant ":Segment" as SEG
+
+activate USER
+
+USER -> UI : Starts Route Planning
+activate UI
+
+    UI -> CTRL** : create()
+    activate CTRL
+        CTRL -> FREIGHT_REPO** : create()
+        CTRL -> LINE_REPO : getInstance()
+        activate LINE_REPO
+            LINE_REPO --> CTRL : instance
+        deactivate LINE_REPO
+        CTRL -> ROUTE_REPO : getInstance()
+        activate ROUTE_REPO
+            ROUTE_REPO --> CTRL : instance
+        deactivate ROUTE_REPO
+    deactivate CTRL
+
+    UI --> USER : displays menu options
+
+
+USER -> UI : selects "List Pending Freights"
+
+    UI -> CTRL : getPendingFreights()
+    activate CTRL
+        CTRL -> FREIGHT_REPO : getPendingFreights()
+        activate FREIGHT_REPO
+            FREIGHT_REPO -> CONN : getConnection()
+            activate CONN
+                CONN --> FREIGHT_REPO : connection
+            deactivate CONN
+
+            FREIGHT_REPO -> CS** : prepareCall("{ ? = call fn_get_all_pending_freights() }")
+            activate CS
+                CS -> CS : registerOutParameter(1, OracleTypes.CURSOR)
+                CS -> CS : execute()
+
+                note right of CS
+                    **PL/SQL Function Call**
+                    Returns SYS_REFCURSOR with:
+                    - ID
+                    - ORIGIN (facility_id)
+                    - DESTINATION (facility_id)
+                    - ORIGIN_NAME
+                    - DEST_NAME
+                end note
+
+                CS --> FREIGHT_REPO : ResultSet (cursor)
+            deactivate CS
+
+            loop for each row in ResultSet
+                FREIGHT_REPO -> FREIGHT_REPO : creates Freight with Facility objects
+            end
+
+            FREIGHT_REPO --> CTRL : List<Freight>
+        deactivate FREIGHT_REPO
+
+        CTRL -> ROUTE_REPO : getRoutes()
+        activate ROUTE_REPO
+            ROUTE_REPO --> CTRL : createdRoutes
+        deactivate ROUTE_REPO
+
+        CTRL -> CTRL : filters freights not in routes
+        CTRL --> UI : pendingFreights
+    deactivate CTRL
+
+    UI --> USER : displays pending freights list
+
+USER -> UI : selects "Create Route (Manual)"
+
+    UI -> UI : selectFreightsFlow()
+    activate UI
+        UI -> CTRL : getPendingFreights()
+        activate CTRL
+            note right of CTRL
+                Uses same flow as above
+                to get pending freights
+            end note
+            CTRL --> UI : availableFreights
+        deactivate CTRL
+
+        UI --> USER : displays available freights
+
+        loop user selects freights
+            USER --> UI : selects freight
+            UI -> CTRL : addFreightToCurrentPlan(freight)
+            activate CTRL
+            deactivate CTRL
+        end
+
+        USER --> UI : confirms selection (0)
+    deactivate UI
+
+    UI -> UI : Manual Station Selection Flow
+    activate UI
+        loop building path
+            UI -> CTRL : getLastSelectedFacility()
+            activate CTRL
+                CTRL --> UI : lastFacility (or null)
+            deactivate CTRL
+
+            alt lastFacility is null
+                UI -> CTRL : getAvailableFacilities()
+                activate CTRL
+                    CTRL -> FREIGHT_REPO : getAllFacilities()
+                    activate FREIGHT_REPO
+                        FREIGHT_REPO -> CS** : prepareCall("{ ? = call fn_get_all_facilities() }")
+                        activate CS
+                            CS -> CS : execute()
+                            CS --> FREIGHT_REPO : ResultSet (facilities)
+                        deactivate CS
+                        FREIGHT_REPO --> CTRL : allFacilities
+                    deactivate FREIGHT_REPO
+                    CTRL --> UI : availableFacilities
+                deactivate CTRL
+            else lastFacility exists
+                UI -> CTRL : getFacilitiesConnectedTo(lastFacility)
+                activate CTRL
+                    CTRL -> LINE_REPO : getLines()
+                    activate LINE_REPO
+                        LINE_REPO --> CTRL : allLines
+                    deactivate LINE_REPO
+                    CTRL -> CTRL : finds connected facilities
+                    CTRL --> UI : connectedFacilities
+                deactivate CTRL
+            end
+
+            UI --> USER : displays station options
+            USER --> UI : selects station
+
+            UI -> CTRL : addFacilityToSequence(facility)
+            activate CTRL
+            deactivate CTRL
+
+            opt user wants to finish
+                UI -> CTRL : validateAllFreightsInSequence()
+                activate CTRL
+                    loop for each freight
+                        CTRL -> CTRL : findFreightSatisfactionIndex(freight, startIndex)
+                    end
+                    CTRL --> UI : isValid
+                deactivate CTRL
+
+                alt validation fails
+                    UI --> USER : displays error (path doesn't satisfy freights)
+                else validation succeeds
+                    note left of UI : Exit loop
+                end
+            end
+        end
+    deactivate UI
+
+    USER --> UI : provides route name
+
+    UI -> CTRL : createAndSaveRoute(routeName)
+    activate CTRL
+        loop for each pair of facilities
+            CTRL -> LINE_REPO : findLineConnecting(startId, endId)
+            activate LINE_REPO
+                LINE_REPO --> CTRL : line (or null)
+            deactivate LINE_REPO
+
+            opt line is null
+                CTRL --> UI : error (no physical connection)
+                deactivate CTRL
+            end
+
+            CTRL -> LINE_REPO : getSegmentsByLineId(lineId)
+            activate LINE_REPO
+                LINE_REPO --> CTRL : physicalSegments
+            deactivate LINE_REPO
+
+            CTRL -> CTRL : calculates total length, weight limit, electrification, tracks
+
+            CTRL -> SEG** : create(lineId, order, attributes...)
+        end
+
+        loop for each freight
+            CTRL -> CTRL : validateFreightPath(freight)
+        end
+
+        CTRL -> ROUTE** : create(routeId, routeName)
+
+        loop for each segment
+            CTRL -> ROUTE : addSegment(segment)
+            activate ROUTE
+            deactivate ROUTE
+        end
+
+        loop for each freight
+            CTRL -> ROUTE : addFreight(freight)
+            activate ROUTE
+            deactivate ROUTE
+        end
+
+        CTRL -> ROUTE_REPO : addRoute(route)
+        activate ROUTE_REPO
+        deactivate ROUTE_REPO
+
+        CTRL --> UI : success
+    deactivate CTRL
+
+    UI --> USER : displays success message
+
+USER -> UI : selects "List Created Routes"
+
+    UI -> CTRL : getAllCreatedRoutes()
+    activate CTRL
+        CTRL -> ROUTE_REPO : getRoutes()
+        activate ROUTE_REPO
+            ROUTE_REPO --> CTRL : routes
+        deactivate ROUTE_REPO
+        CTRL --> UI : routes
+    deactivate CTRL
+
+    loop for each route
+        UI -> ROUTE : getSegments()
+        activate ROUTE
+            ROUTE --> UI : segments
+        deactivate ROUTE
+
+        UI -> ROUTE : getFreights()
+        activate ROUTE
+            ROUTE --> UI : freights
+        deactivate ROUTE
+
+        UI -> UI : formats and displays route details
+    end
+
+    UI --> USER : displays routes with stations sequence and freight assignments
+
+deactivate UI
+
+deactivate USER
+
+
+
+@enduml

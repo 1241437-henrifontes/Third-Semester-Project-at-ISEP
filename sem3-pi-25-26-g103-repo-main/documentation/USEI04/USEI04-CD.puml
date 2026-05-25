@@ -1,0 +1,70 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+
+package ui {
+  class PathSequencingUI {
+    +run() : void
+  }
+}
+
+package controllers {
+  class PathSequencingController {
+    -sequencer : PickPathSequencer
+    +process(trolleys : List<Trolley>) : void
+  }
+}
+
+package Repositories {
+  class TrolleyRepository {
+    -trolleys : List<Trolley>
+    -lastHeuristic : PickingService.Heuristic
+    -lastPolicy : PickingService.OverflowPolicy
+    -lastTrolleyCapacity : double
+    {static} -instance : TrolleyRepository
+    {static} +getInstance() : TrolleyRepository
+    +getAllTrolleys() : List<Trolley>
+    +getTrolleyCount() : int
+    +hasTrolleys() : boolean
+  }
+}
+
+package model {
+  class PickPathSequencer {
+    +removeDuplicates(bays : List<Bay>) : List<Bay>
+    +strategyA(bays : List<Bay>) : String
+    +strategyB(bays : List<Bay>) : String
+  }
+
+  class Trolley {
+    -capacityKg : double
+    -usedKg : double
+    -picks : List<PickAllocationRow>
+    +getPicks() : List<PickAllocationRow>
+  }
+
+  class PickAllocationRow {
+    -aisle : int
+    -bay : int
+    +getAisle() : int
+    +getBay() : int
+  }
+
+  class Bay {
+    -aisle : int
+    -bay : int
+    +getAisle() : int
+    +getBay() : int
+  }
+}
+
+ui.PathSequencingUI --> controllers.PathSequencingController : uses
+ui.PathSequencingUI --> Repositories.TrolleyRepository : retrieves
+controllers.PathSequencingController --> model.PickPathSequencer : uses
+controllers.PathSequencingController --> model.Trolley : processes
+Repositories.TrolleyRepository *-- model.Trolley : stores *
+model.Trolley --> model.PickAllocationRow : contains *
+model.PickAllocationRow ..> model.Bay : (aisle,bay)
+model.PickPathSequencer ..> model.Bay : operates on
+
+@enduml

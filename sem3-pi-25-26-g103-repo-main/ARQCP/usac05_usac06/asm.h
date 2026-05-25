@@ -1,0 +1,1 @@
+int enqueueValue(int* buffer, int length, int* nelem, int* tail, int* head, int value);

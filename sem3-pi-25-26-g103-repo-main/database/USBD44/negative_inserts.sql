@@ -1,0 +1,263 @@
+DECLARE
+p_lineId Line.lineId%TYPE := 1;
+    p_order LineSegment."order"%TYPE := -3;
+    p_isElectrified LineSegment.isElectrified%TYPE := 'N';
+    p_maxWeight LineSegment.maxWeight%TYPE := 10000;
+    p_length LineSegment.length%TYPE := 8000;
+    p_numberOfTracks LineSegment.numberOfTracks%TYPE := 4;
+    p_hasSiding Number := 1;
+    p_sidingId Siding.ID%TYPE := 6;
+    p_sidingPosition Siding.position%TYPE := 2000;
+    p_sidingLength Siding.length%TYPE := 500;
+BEGIN
+    add_line_segment(
+            p_lineId,
+            p_order,
+            p_isElectrified,
+            p_maxWeight,
+            p_length,
+            p_numberOfTracks,
+            p_hasSiding,
+            p_sidingId,
+            p_sidingPosition,
+            p_sidingLength
+    );
+
+COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        RAISE;
+END;
+/
+
+DECLARE
+p_lineId Line.lineId%TYPE := 1;
+    p_order LineSegment."order"%TYPE := 7;
+    p_isElectrified LineSegment.isElectrified%TYPE := 'N';
+    p_maxWeight LineSegment.maxWeight%TYPE := -10000;
+    p_length LineSegment.length%TYPE := 8000;
+    p_numberOfTracks LineSegment.numberOfTracks%TYPE := 4;
+    p_hasSiding Number := 1;
+    p_sidingId Siding.ID%TYPE := 6;
+    p_sidingPosition Siding.position%TYPE := 2000;
+    p_sidingLength Siding.length%TYPE := 500;
+BEGIN
+    add_line_segment(
+            p_lineId,
+            p_order,
+            p_isElectrified,
+            p_maxWeight,
+            p_length,
+            p_numberOfTracks,
+            p_hasSiding,
+            p_sidingId,
+            p_sidingPosition,
+            p_sidingLength
+    );
+
+COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        RAISE;
+END;
+/
+
+DECLARE
+p_lineId Line.lineId%TYPE := 1;
+    p_order LineSegment."order"%TYPE := 8;
+    p_isElectrified LineSegment.isElectrified%TYPE := 'N';
+    p_maxWeight LineSegment.maxWeight%TYPE := 10000;
+    p_length LineSegment.length%TYPE := -8000;
+    p_numberOfTracks LineSegment.numberOfTracks%TYPE := 4;
+    p_hasSiding Number := 1;
+    p_sidingId Siding.ID%TYPE := 6;
+    p_sidingPosition Siding.position%TYPE := 2000;
+    p_sidingLength Siding.length%TYPE := 500;
+BEGIN
+    add_line_segment(
+            p_lineId,
+            p_order,
+            p_isElectrified,
+            p_maxWeight,
+            p_length,
+            p_numberOfTracks,
+            p_hasSiding,
+            p_sidingId,
+            p_sidingPosition,
+            p_sidingLength
+    );
+
+COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        RAISE;
+END;
+/
+
+DECLARE
+p_lineId Line.lineId%TYPE := 1;
+    p_order LineSegment."order"%TYPE := 8;
+    p_isElectrified LineSegment.isElectrified%TYPE := 'N';
+    p_maxWeight LineSegment.maxWeight%TYPE := 10000;
+    p_length LineSegment.length%TYPE := 8000;
+    p_numberOfTracks LineSegment.numberOfTracks%TYPE := -4;
+    p_hasSiding Number := 1;
+    p_sidingId Siding.ID%TYPE := 6;
+    p_sidingPosition Siding.position%TYPE := 2000;
+    p_sidingLength Siding.length%TYPE := 500;
+BEGIN
+    add_line_segment(
+            p_lineId,
+            p_order,
+            p_isElectrified,
+            p_maxWeight,
+            p_length,
+            p_numberOfTracks,
+            p_hasSiding,
+            p_sidingId,
+            p_sidingPosition,
+            p_sidingLength
+    );
+
+COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        RAISE;
+END;
+/
+
+DECLARE
+p_lineId Line.lineId%TYPE := 1;
+    p_order LineSegment."order"%TYPE := 8;
+    p_isElectrified LineSegment.isElectrified%TYPE := 'N';
+    p_maxWeight LineSegment.maxWeight%TYPE := 10000;
+    p_length LineSegment.length%TYPE := 8000;
+    p_numberOfTracks LineSegment.numberOfTracks%TYPE := 4;
+    p_hasSiding Number := -1;
+    p_sidingId Siding.ID%TYPE := 6;
+    p_sidingPosition Siding.position%TYPE := 2000;
+    p_sidingLength Siding.length%TYPE := 500;
+BEGIN
+    add_line_segment(
+            p_lineId,
+            p_order,
+            p_isElectrified,
+            p_maxWeight,
+            p_length,
+            p_numberOfTracks,
+            p_hasSiding,
+            p_sidingId,
+            p_sidingPosition,
+            p_sidingLength
+    );
+
+COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        RAISE;
+END;
+/
+
+DECLARE
+p_lineId Line.lineId%TYPE := 1;
+    p_order LineSegment."order"%TYPE := 8;
+    p_isElectrified LineSegment.isElectrified%TYPE := 'N';
+    p_maxWeight LineSegment.maxWeight%TYPE := 10000;
+    p_length LineSegment.length%TYPE := 8000;
+    p_numberOfTracks LineSegment.numberOfTracks%TYPE := 4;
+    p_hasSiding Number := 1;
+    p_sidingId Siding.ID%TYPE := -6;
+    p_sidingPosition Siding.position%TYPE := 2000;
+    p_sidingLength Siding.length%TYPE := 500;
+BEGIN
+    add_line_segment(
+            p_lineId,
+            p_order,
+            p_isElectrified,
+            p_maxWeight,
+            p_length,
+            p_numberOfTracks,
+            p_hasSiding,
+            p_sidingId,
+            p_sidingPosition,
+            p_sidingLength
+    );
+
+COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        RAISE;
+END;
+/
+
+DECLARE
+p_lineId Line.lineId%TYPE := 1;
+    p_order LineSegment."order"%TYPE := 8;
+    p_isElectrified LineSegment.isElectrified%TYPE := 'N';
+    p_maxWeight LineSegment.maxWeight%TYPE := 10000;
+    p_length LineSegment.length%TYPE := 8000;
+    p_numberOfTracks LineSegment.numberOfTracks%TYPE := 4;
+    p_hasSiding Number := 1;
+    p_sidingId Siding.ID%TYPE := 6;
+    p_sidingPosition Siding.position%TYPE := -2000;
+    p_sidingLength Siding.length%TYPE := 500;
+BEGIN
+    add_line_segment(
+            p_lineId,
+            p_order,
+            p_isElectrified,
+            p_maxWeight,
+            p_length,
+            p_numberOfTracks,
+            p_hasSiding,
+            p_sidingId,
+            p_sidingPosition,
+            p_sidingLength
+    );
+
+COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        RAISE;
+END;
+/
+
+DECLARE
+p_lineId Line.lineId%TYPE := 1;
+    p_order LineSegment."order"%TYPE := 8;
+    p_isElectrified LineSegment.isElectrified%TYPE := 'N';
+    p_maxWeight LineSegment.maxWeight%TYPE := 10000;
+    p_length LineSegment.length%TYPE := 8000;
+    p_numberOfTracks LineSegment.numberOfTracks%TYPE := 4;
+    p_hasSiding Number := 1;
+    p_sidingId Siding.ID%TYPE := 6;
+    p_sidingPosition Siding.position%TYPE := 2000;
+    p_sidingLength Siding.length%TYPE := -500;
+BEGIN
+    add_line_segment(
+            p_lineId,
+            p_order,
+            p_isElectrified,
+            p_maxWeight,
+            p_length,
+            p_numberOfTracks,
+            p_hasSiding,
+            p_sidingId,
+            p_sidingPosition,
+            p_sidingLength
+    );
+
+COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        RAISE;
+END;
+/

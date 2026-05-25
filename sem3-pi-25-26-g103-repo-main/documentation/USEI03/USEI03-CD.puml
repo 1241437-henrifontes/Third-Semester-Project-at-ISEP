@@ -1,0 +1,151 @@
+@startuml
+
+skinparam shadowing false
+skinparam linetype polyline
+skinparam classAttributeIconSize 0
+skinparam roundcorner 8
+
+title USEI03 - Picking Plan Generation - Class Diagram
+
+class PickAllocationRow <<entity>> {
+    - orderId : String
+    - lineNo : int
+    - sku : SKU
+    - boxId : String
+    - aisle : int
+    - bay : int
+    - qty : int
+    - unitWeightKg : double
+    - originalTotalWeight : double
+    + PickAllocationRow(orderId, lineNo, sku, qty, boxId, aisle, bay, unitWeightKg)
+    + copyWithQty(newQty : int) : PickAllocationRow
+    + getOrderId() : String
+    + getLineNo() : int
+    + getSku() : SKU
+    + getBoxId() : String
+    + getAisle() : int
+    + getBay() : int
+    + getQty() : int
+    + getUnitWeightKg() : double
+    + getWeightKg() : double
+    + getOriginalTotalWeight() : double
+    + compareTo(o : PickAllocationRow) : int
+    + equals(o : Object) : boolean
+    + hashCode() : int
+    + toString() : String
+}
+
+class Trolley <<entity>> {
+    - {static} EPS : double = 1e-9
+    - capacityKg : double
+    - usedKg : double
+    - picks : List<PickAllocationRow>
+    + Trolley(capacityKg : double)
+    + remainingKg() : double
+    + canFit(weightKg : double) : boolean
+    + tryAdd(row : PickAllocationRow) : boolean
+    + add(row : PickAllocationRow) : void
+    + getCapacityKg() : double
+    + getUsedKg() : double
+    + getUtilisation() : double
+    + getPicks() : List<PickAllocationRow>
+    + compareTo(other : Trolley) : int
+}
+
+class PickingService <<service>> {
+    - {static} EPS : double = 1e-9
+    - skippedRows : List<PickAllocationRow>
+    + plan(rows : List<PickAllocationRow>, capacity : double, heuristic : Heuristic, policy : OverflowPolicy) : List<Trolley>
+    + getSkippedRows() : List<PickAllocationRow>
+    - processSplit(trolleys : List<Trolley>, row : PickAllocationRow, capacity : double, heuristic : Heuristic) : void
+    - processDefer(trolleys : List<Trolley>, row : PickAllocationRow, capacity : double, heuristic : Heuristic) : void
+    - selectTrolleyForSplit(trolleys : List<Trolley>, unitWeight : double, heuristic : Heuristic) : Trolley
+    - selectTrolleyForDefer(trolleys : List<Trolley>, row : PickAllocationRow, heuristic : Heuristic) : Trolley
+}
+
+class PickingUI <<UI>> {
+    - controller : PickingController
+    + PickingUI()
+    + run() : void
+    + getController() : PickingController
+}
+
+class PickingController <<controller>> {
+    - planner : PickingService
+    + plan(rows : List<PickAllocationRow>, capacityKg : double, heuristic : Heuristic, policy : OverflowPolicy) : List<Trolley>
+    + getSkippedRows() : List<PickAllocationRow>
+    + convertToPickRows() : List<PickAllocationRow>
+}
+
+class TrolleyRepository <<singleton, repository>> {
+    - trolleys : List<Trolley>
+    - lastHeuristic : Heuristic
+    - lastPolicy : OverflowPolicy
+    - lastTrolleyCapacity : double
+    + {static} getInstance() : TrolleyRepository
+    + storePlan(trolleys : List<Trolley>, heuristic : Heuristic, policy : OverflowPolicy, capacity : double) : void
+}
+
+class AllocationRepository <<singleton, repository>> {
+    - allocationList : List<Allocation>
+    + {static} getInstance() : AllocationRepository
+    + getAllocationList() : List<Allocation>
+}
+
+class ItemRepository <<singleton, repository>> {
+    - items : List<Item>
+    + {static} getInstance() : ItemRepository
+    + getItemBySKU(sku : SKU) : Item
+}
+
+class Allocation <<entity>> {
+    - line : OrderLine
+    - boxes : List<Map<Box, Integer>>
+    + getLine() : OrderLine
+    + getBoxes() : List<Map<Box, Integer>>
+}
+
+class OrderLine <<entity>> {
+    - orderId : String
+    - lineNumber : int
+    - sku : SKU
+    - qty : int
+    - status : Status
+    + getOrderId() : String
+    + getLineNumber() : int
+    + getSku() : SKU
+    + getQty() : int
+    + getStatus() : Status
+}
+
+class Item <<entity>> {
+    - sku : SKU
+    - unitWeight : float
+    + getSku() : SKU
+    + getUnitWeight() : float
+}
+
+class SKU <<value object>> {
+    - sku : String
+    + getSku() : String
+}
+
+PickingUI --> PickingController : controller
+PickingController --> PickingService : planner
+PickingController ..> AllocationRepository : uses
+PickingController ..> ItemRepository : uses
+PickingController ..> TrolleyRepository : uses
+PickingController ..> PickAllocationRow : creates
+PickingService ..> Trolley : creates
+
+AllocationRepository --> Allocation : allocationList
+TrolleyRepository --> Trolley : trolleys
+ItemRepository --> Item : items
+
+Allocation --> OrderLine : line
+OrderLine --> SKU : sku
+Item --> SKU : sku
+PickAllocationRow --> SKU : sku
+Trolley "1" *-- "*" PickAllocationRow : picks
+
+@enduml

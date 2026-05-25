@@ -1,0 +1,127 @@
+@startuml
+autonumber
+
+actor "Route Planner" as USER
+participant ":RoutePlannerUI" as UI
+participant ":RiskAwarePathController" as CTRL
+participant "GraphRepository" as GR_REPO
+participant ":RiskAwarePathFinder" as FINDER
+participant "Algorithms" as ALG
+participant "result\n:String" as RESULT
+
+activate USER
+
+USER -> UI : Starts Risk-Aware Route Planning
+activate UI
+
+    UI -> GR_REPO : getInstance()
+    activate GR_REPO
+        GR_REPO --> UI : instance
+    deactivate GR_REPO
+
+    UI -> GR_REPO : getStationGraphOrdered()
+    activate GR_REPO
+        GR_REPO --> UI : graph
+    deactivate GR_REPO
+
+    opt graph is null or empty
+        UI --> USER : displays error message
+        deactivate UI
+        deactivate USER
+    end
+
+    UI -> CTRL** : create(graph)
+    activate CTRL
+        CTRL -> FINDER** : create()
+    deactivate CTRL
+
+    UI -> CTRL : getAllStations()
+    activate CTRL
+        CTRL --> UI : stations (sorted list)
+    deactivate CTRL
+
+    UI -> UI : displayStationsList(stations)
+    UI --> USER : prompts for Origin Station ID/Name
+
+USER --> UI : provides origin identification
+
+    UI --> USER : prompts for Destination Station ID/Name
+
+USER --> UI : provides destination identification
+
+    UI -> CTRL : calculateRiskAwareRoute(startInput, endInput)
+    activate CTRL
+        CTRL -> CTRL : findNode(startInput)
+        CTRL --> CTRL : startNode
+
+        opt startNode is null
+            CTRL --> UI : error message "Origin not found"
+            deactivate CTRL
+        end
+
+        CTRL -> CTRL : findNode(endInput)
+        CTRL --> CTRL : endNode
+
+        opt endNode is null
+            CTRL --> UI : error message "Destination not found"
+            deactivate CTRL
+        end
+
+        CTRL -> FINDER : findRobustRoute(graph, startNode, endNode)
+        activate FINDER
+            FINDER -> ALG : shortestPathBellmanFord(graph, startNode, endNode, path)
+            activate ALG
+                note right of ALG
+                    **Bellman-Ford Algorithm**
+                    1. Initialize distances to infinity
+                    2. Set source distance to 0
+                    3. Relax edges V-1 times
+                    4. Detect negative cycles
+                    Time Complexity: O(V × E)
+                end note
+
+                ALG --> FINDER : totalCost (or null if error)
+            deactivate ALG
+
+            opt totalCost is null && path contains cycle
+                FINDER --> CTRL : "Negative cycle detected: stations and edges involved"
+                deactivate FINDER
+                CTRL --> UI : cycle detection message
+                deactivate CTRL
+            end
+
+            opt totalCost is null && no path exists
+                FINDER --> CTRL : "No path exists" message
+                deactivate FINDER
+                CTRL --> UI : no path message
+                deactivate CTRL
+            end
+
+            FINDER -> FINDER : formatPathOutput(graph, path, totalCost)
+            activate FINDER
+                loop for each node in path
+                    FINDER -> graph : edge(current, next)
+                    activate graph
+                        graph --> FINDER : edge
+                    deactivate graph
+                    FINDER -> edge : getCost()
+                    activate edge
+                        edge --> FINDER : segmentCost
+                    deactivate edge
+                end
+                FINDER --> FINDER : formattedPath
+            deactivate FINDER
+
+            FINDER --> CTRL : result (formatted path with costs)
+        deactivate FINDER
+
+        CTRL --> UI : result
+    deactivate CTRL
+
+    UI --> USER : displays shortest path with costs or error
+
+deactivate UI
+
+deactivate USER
+
+@enduml

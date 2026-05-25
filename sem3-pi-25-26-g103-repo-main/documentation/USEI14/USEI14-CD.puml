@@ -1,0 +1,92 @@
+@startuml
+skinparam shadowing false
+skinparam linetype polyline
+skinparam classAttributeIconSize 0
+skinparam roundcorner 8
+
+class MaxFlowUI <<UI>> {
+  + run() : void
+  - displayStationsList(stations : List<Node>) : void
+  - displayMaxFlowResult(result : MaxFlowResultDTO) : void
+}
+
+class MaxFlowController <<controller>> {
+  - graphRepository : GraphRepository
+  + MaxFlowController()
+  + calculateMaxFlow(sourceStation : Node, sinkStation : Node) : MaxFlowResultDTO
+  + getStationByName(stationName : String) : Node
+  + getStationById(stationId : String) : Node
+  + getAllStations() : List<Node>
+}
+
+class GraphRepository <<singleton, repository>> {
+  - {static} instance : GraphRepository
+  - stationGraph : Graph<Node, Double>
+  - allShortestPaths : HashMap<Node,ArrayList<LinkedHashSet<Node>>>
+  - allDistances : HashMap<Node, ArrayList<Double>>
+  + maxDegree : double
+  + maxStrength : double
+  + {static} getInstance() : GraphRepository
+  + getStationGraph() : Graph<Node, Double>
+  + getAllShortestPaths() : HashMap<Node,ArrayList<LinkedHashSet<Node>>>
+  + getAllDistances() : HashMap<Node, ArrayList<Double>>
+}
+
+class MaxFlowAlgorithm <<service>> {
+  + {static} calculateMaxFlow(graph : Graph<Node, Double>, source : Node, sink : Node) : MaxFlowResult
+  - {static} edmondsKarp(graph : Graph<Node, Double>, source : Node, sink : Node) : MaxFlowResult
+  - {static} bfs(residualGraph : Graph<Node, Double>, source : Node, sink : Node, parent : Map<Node, Node>) : boolean
+  + {static} getTemporalComplexity() : String
+}
+
+class MaxFlowResult <<value object>> {
+  - maxFlowValue : double
+  - residualGraph : Graph<Node, Double>
+  - maxFlowGraph : Graph<Node, Double>
+  - augmentingPaths : List<List<Node>>
+  + MaxFlowResult(maxFlowValue : double, residualGraph : Graph<Node, Double>, maxFlowGraph : Graph<Node, Double>, augmentingPaths : List<List<Node>>)
+  + getMaxFlowValue() : double
+  + getResidualGraph() : Graph<Node, Double>
+  + getMaxFlowGraph() : Graph<Node, Double>
+  + getAugmentingPaths() : List<List<Node>>
+  + getNumberOfPaths() : int
+}
+
+class MaxFlowResultDTO <<dto>> {
+  - sourceStation : Node
+  - sinkStation : Node
+  - maxFlowValue : double
+  - temporalComplexity : String
+  + MaxFlowResultDTO(sourceStation : Node, sinkStation : Node, maxFlowValue : double, temporalComplexity : String)
+  + getSourceStation() : Node
+  + getSinkStation() : Node
+  + getMaxFlowValue() : double
+  + getTemporalComplexity() : String
+}
+
+class Node <<entity>> {
+  - node_id : String
+  - name : String
+  - geoCoordinates : Pair<Double, Double>
+  - xyCoordinates : Pair<Double, Double>
+  + getNode_id() : String
+  + getName() : String
+  + getGeoCoordinates() : Pair<Double, Double>
+  + getXyCoordinates() : Pair<Double, Double>
+}
+
+MaxFlowUI --> MaxFlowController
+MaxFlowController --> GraphRepository
+MaxFlowController ..> MaxFlowAlgorithm : uses
+MaxFlowController ..> MaxFlowResultDTO : creates
+MaxFlowController ..> Node : uses
+
+MaxFlowAlgorithm ..> GraphRepository : uses
+MaxFlowAlgorithm ..> MaxFlowResult : creates
+MaxFlowAlgorithm ..> Node : uses
+
+MaxFlowController ..> MaxFlowResult : uses
+MaxFlowResultDTO "1" --> "1" Node : source
+MaxFlowResultDTO "1" --> "1" Node : sink
+
+@enduml
